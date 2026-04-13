@@ -1,0 +1,144 @@
+# ============================================================
+# JarvisAI — mono-repo .gitignore
+# Covers: FastAPI/Python (backend), Next.js/TypeScript (frontend)
+# ============================================================
+
+
+# ─── Environment & secrets ───────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.test
+
+
+# ─── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+MANIFEST
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+nosetests.xml
+*.coveragerc
+
+# Type checkers & linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+
+# uv
+# uv.lock is intentionally committed — do NOT add it here
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Alembic (keep migrations, ignore compiled pyc inside)
+# backend/alembic/versions/__pycache__/  ← handled by __pycache__ above
+
+
+# ─── Node / JavaScript / TypeScript ──────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Build output
+dist/
+build/
+
+# pnpm
+# pnpm-lock.yaml is intentionally committed — do NOT add it here
+
+# Turbopack / Turborepo
+.turbo/
+
+# Storybook
+storybook-static/
+
+
+# ─── Logs ────────────────────────────────────────────────────
+*.log
+*.log.*
+logs/
+nohup.out
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+
+# ─── OS generated ────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+
+# ─── Editors & IDEs ──────────────────────────────────────────
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+
+# ─── Docker ──────────────────────────────────────────────────
+# Keep Dockerfiles and compose — ignore local overrides
+docker-compose.override.yml
+.docker/
+
+
+# ─── Testing & QA ────────────────────────────────────────────
+playwright-report/
+test-results/
+.nyc_output/
+
+
+# ─── Project-specific ────────────────────────────────────────
+# Regulatory documents (large binary/PDF assets)
+backend/data/regulatory_docs/
+
+# Local server pid / temp files
+*.pid
+tmp/
+temp/

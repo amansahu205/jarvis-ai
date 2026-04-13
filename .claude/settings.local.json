@@ -22,7 +22,19 @@
       "Bash(curl -s http://localhost:8000/docs -o /dev/null -w \"GET /docs       → %{http_code}\\\\n\")",
       "Bash(curl -s http://localhost:8000/api/v1/ -w \"GET /api/v1/   → %{http_code}\\\\n\")",
       "Bash(curl -s http://localhost:8000/docs -o /dev/null -w \"GET /docs      → %{http_code}\\\\n\")",
-      "Bash(curl -s http://localhost:8000/api/v1/ -w \"GET /api/v1/  → %{http_code}\\\\n\")"
+      "Bash(curl -s http://localhost:8000/api/v1/ -w \"GET /api/v1/  → %{http_code}\\\\n\")",
+      "Bash(uv add:*)",
+      "Bash(curl -s http://localhost:8000/openapi.json)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.get\\('paths',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(curl -v http://localhost:8000/)",
+      "Bash(python -c \"from app.api.v1.router import router; print\\([r.path for r in router.routes]\\)\")",
+      "Bash(.venv/Scripts/python -c \"from app.api.v1.router import router; print\\([r.path for r in router.routes]\\)\")",
+      "Bash(.venv/Scripts/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload)",
+      "Bash(nohup .venv/Scripts/uvicorn app.main:app --host 0.0.0.0 --port 8000)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(curl -s --retry 5 --retry-delay 1 --retry-connrefused http://localhost:8000/openapi.json)",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}' -X POST http://localhost:8000/api/v1/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"aris@jarvis.ai\",\"password\":\"Demo1234!\",\"name\":\"Dr. Aris Papadopoulos\",\"role\":\"responsible_person\"}')",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}' -X POST http://localhost:8000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"aris@jarvis.ai\",\"password\":\"Demo1234!\"}')"
     ]
   }
 }

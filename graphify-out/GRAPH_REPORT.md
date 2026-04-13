@@ -1,100 +1,117 @@
 # Graph Report - .  (2026-04-12)
 
 ## Corpus Check
-- Corpus is ~38,683 words - fits in a single context window. You may not need a graph.
+- 0 files · ~38,683 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 278 nodes · 212 edges · 86 communities detected
+- 308 nodes · 229 edges · 102 communities detected
 - Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 18 edges (avg confidence: 0.89)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Select Component|Select Component]]
-- [[_COMMUNITY_Sheet Drawer UI|Sheet Drawer UI]]
-- [[_COMMUNITY_Sidebar Navigation|Sidebar Navigation]]
-- [[_COMMUNITY_Drawer Component|Drawer Component]]
-- [[_COMMUNITY_Toast Notifications|Toast Notifications]]
-- [[_COMMUNITY_Graphify Config|Graphify Config]]
-- [[_COMMUNITY_Breadcrumb Navigation|Breadcrumb Navigation]]
-- [[_COMMUNITY_Pagination Controls|Pagination Controls]]
-- [[_COMMUNITY_Dialog Modal UI|Dialog Modal UI]]
-- [[_COMMUNITY_Menubar Navigation|Menubar Navigation]]
-- [[_COMMUNITY_UI Placeholder Assets|UI Placeholder Assets]]
-- [[_COMMUNITY_App Brand Icons|App Brand Icons]]
-- [[_COMMUNITY_Crisis Ticket Workflow|Crisis Ticket Workflow]]
-- [[_COMMUNITY_Carousel Component|Carousel Component]]
-- [[_COMMUNITY_Context Menu UI|Context Menu UI]]
-- [[_COMMUNITY_Form Controls|Form Controls]]
-- [[_COMMUNITY_Data Table UI|Data Table UI]]
-- [[_COMMUNITY_Mobile Blocker Screen|Mobile Blocker Screen]]
-- [[_COMMUNITY_Regumap Dashboard|Regumap Dashboard]]
-- [[_COMMUNITY_Accordion Component|Accordion Component]]
-- [[_COMMUNITY_Alert Dialog UI|Alert Dialog UI]]
-- [[_COMMUNITY_Card Layout|Card Layout]]
-- [[_COMMUNITY_Dropdown Menu|Dropdown Menu]]
-- [[_COMMUNITY_OTP Input|OTP Input]]
-- [[_COMMUNITY_Item Component|Item Component]]
-- [[_COMMUNITY_Navigation Menu|Navigation Menu]]
-- [[_COMMUNITY_Toggle Group|Toggle Group]]
-- [[_COMMUNITY_App Entry Auth|App Entry Auth]]
-- [[_COMMUNITY_Alert Component|Alert Component]]
-- [[_COMMUNITY_Avatar Component|Avatar Component]]
-- [[_COMMUNITY_Chart Component|Chart Component]]
-- [[_COMMUNITY_Command Palette|Command Palette]]
-- [[_COMMUNITY_Popover Component|Popover Component]]
-- [[_COMMUNITY_Radio Group|Radio Group]]
-- [[_COMMUNITY_Scroll Area|Scroll Area]]
-- [[_COMMUNITY_Slider Component|Slider Component]]
-- [[_COMMUNITY_Tabs Component|Tabs Component]]
-- [[_COMMUNITY_Mobile Detection Hook|Mobile Detection Hook]]
-- [[_COMMUNITY_Root Layout|Root Layout]]
-- [[_COMMUNITY_Theme Provider|Theme Provider]]
-- [[_COMMUNITY_Active Shipments|Active Shipments]]
-- [[_COMMUNITY_Audit Log Page|Audit Log Page]]
-- [[_COMMUNITY_Cascade Actions Panel|Cascade Actions Panel]]
-- [[_COMMUNITY_Compliance Sidebar|Compliance Sidebar]]
-- [[_COMMUNITY_Pharma Dashboard|Pharma Dashboard]]
-- [[_COMMUNITY_Event Badge|Event Badge]]
-- [[_COMMUNITY_Live Tracker Page|Live Tracker Page]]
-- [[_COMMUNITY_Login Card|Login Card]]
-- [[_COMMUNITY_Map Component|Map Component]]
-- [[_COMMUNITY_Map Container|Map Container]]
-- [[_COMMUNITY_Risk Badge|Risk Badge]]
-- [[_COMMUNITY_Search Panel|Search Panel]]
-- [[_COMMUNITY_Signature Modal|Signature Modal]]
-- [[_COMMUNITY_3D Particle Background|3D Particle Background]]
-- [[_COMMUNITY_Top Navigation Bar|Top Navigation Bar]]
-- [[_COMMUNITY_Aspect Ratio|Aspect Ratio]]
-- [[_COMMUNITY_Badge Component|Badge Component]]
-- [[_COMMUNITY_Button Group|Button Group]]
-- [[_COMMUNITY_Button Component|Button Component]]
-- [[_COMMUNITY_Calendar Component|Calendar Component]]
-- [[_COMMUNITY_Checkbox Component|Checkbox Component]]
-- [[_COMMUNITY_Collapsible Component|Collapsible Component]]
-- [[_COMMUNITY_Empty State|Empty State]]
-- [[_COMMUNITY_Field Component|Field Component]]
-- [[_COMMUNITY_Hover Card|Hover Card]]
-- [[_COMMUNITY_Input Group|Input Group]]
-- [[_COMMUNITY_Input Component|Input Component]]
-- [[_COMMUNITY_Keyboard Badge|Keyboard Badge]]
-- [[_COMMUNITY_Label Component|Label Component]]
-- [[_COMMUNITY_Separator|Separator]]
-- [[_COMMUNITY_Skeleton Loader|Skeleton Loader]]
-- [[_COMMUNITY_Sonner Toast|Sonner Toast]]
-- [[_COMMUNITY_Spinner Component|Spinner Component]]
-- [[_COMMUNITY_Switch Component|Switch Component]]
-- [[_COMMUNITY_Textarea Component|Textarea Component]]
-- [[_COMMUNITY_Tooltip Component|Tooltip Component]]
-- [[_COMMUNITY_Utility Functions|Utility Functions]]
-- [[_COMMUNITY_Next.js Types|Next.js Types]]
-- [[_COMMUNITY_Call Status Cards|Call Status Cards]]
-- [[_COMMUNITY_Crisis Edge States|Crisis Edge States]]
-- [[_COMMUNITY_Shipment Card|Shipment Card]]
-- [[_COMMUNITY_Progress Bar|Progress Bar]]
-- [[_COMMUNITY_Resizable Panel|Resizable Panel]]
-- [[_COMMUNITY_Toast Component|Toast Component]]
-- [[_COMMUNITY_Toaster Component|Toaster Component]]
-- [[_COMMUNITY_Toggle Component|Toggle Component]]
+- [[_COMMUNITY_Community 0|Community 0]]
+- [[_COMMUNITY_Community 1|Community 1]]
+- [[_COMMUNITY_Community 2|Community 2]]
+- [[_COMMUNITY_Community 3|Community 3]]
+- [[_COMMUNITY_Community 4|Community 4]]
+- [[_COMMUNITY_Community 5|Community 5]]
+- [[_COMMUNITY_Community 6|Community 6]]
+- [[_COMMUNITY_Community 7|Community 7]]
+- [[_COMMUNITY_Community 8|Community 8]]
+- [[_COMMUNITY_Community 9|Community 9]]
+- [[_COMMUNITY_Community 10|Community 10]]
+- [[_COMMUNITY_Community 11|Community 11]]
+- [[_COMMUNITY_Community 12|Community 12]]
+- [[_COMMUNITY_Community 13|Community 13]]
+- [[_COMMUNITY_Community 14|Community 14]]
+- [[_COMMUNITY_Community 15|Community 15]]
+- [[_COMMUNITY_Community 16|Community 16]]
+- [[_COMMUNITY_Community 17|Community 17]]
+- [[_COMMUNITY_Community 18|Community 18]]
+- [[_COMMUNITY_Community 19|Community 19]]
+- [[_COMMUNITY_Community 20|Community 20]]
+- [[_COMMUNITY_Community 21|Community 21]]
+- [[_COMMUNITY_Community 22|Community 22]]
+- [[_COMMUNITY_Community 23|Community 23]]
+- [[_COMMUNITY_Community 24|Community 24]]
+- [[_COMMUNITY_Community 25|Community 25]]
+- [[_COMMUNITY_Community 26|Community 26]]
+- [[_COMMUNITY_Community 27|Community 27]]
+- [[_COMMUNITY_Community 28|Community 28]]
+- [[_COMMUNITY_Community 29|Community 29]]
+- [[_COMMUNITY_Community 30|Community 30]]
+- [[_COMMUNITY_Community 31|Community 31]]
+- [[_COMMUNITY_Community 32|Community 32]]
+- [[_COMMUNITY_Community 33|Community 33]]
+- [[_COMMUNITY_Community 34|Community 34]]
+- [[_COMMUNITY_Community 35|Community 35]]
+- [[_COMMUNITY_Community 36|Community 36]]
+- [[_COMMUNITY_Community 37|Community 37]]
+- [[_COMMUNITY_Community 38|Community 38]]
+- [[_COMMUNITY_Community 39|Community 39]]
+- [[_COMMUNITY_Community 40|Community 40]]
+- [[_COMMUNITY_Community 41|Community 41]]
+- [[_COMMUNITY_Community 42|Community 42]]
+- [[_COMMUNITY_Community 43|Community 43]]
+- [[_COMMUNITY_Community 44|Community 44]]
+- [[_COMMUNITY_Community 45|Community 45]]
+- [[_COMMUNITY_Community 46|Community 46]]
+- [[_COMMUNITY_Community 47|Community 47]]
+- [[_COMMUNITY_Community 48|Community 48]]
+- [[_COMMUNITY_Community 49|Community 49]]
+- [[_COMMUNITY_Community 50|Community 50]]
+- [[_COMMUNITY_Community 51|Community 51]]
+- [[_COMMUNITY_Community 52|Community 52]]
+- [[_COMMUNITY_Community 53|Community 53]]
+- [[_COMMUNITY_Community 54|Community 54]]
+- [[_COMMUNITY_Community 55|Community 55]]
+- [[_COMMUNITY_Community 56|Community 56]]
+- [[_COMMUNITY_Community 57|Community 57]]
+- [[_COMMUNITY_Community 58|Community 58]]
+- [[_COMMUNITY_Community 59|Community 59]]
+- [[_COMMUNITY_Community 60|Community 60]]
+- [[_COMMUNITY_Community 61|Community 61]]
+- [[_COMMUNITY_Community 62|Community 62]]
+- [[_COMMUNITY_Community 63|Community 63]]
+- [[_COMMUNITY_Community 64|Community 64]]
+- [[_COMMUNITY_Community 65|Community 65]]
+- [[_COMMUNITY_Community 66|Community 66]]
+- [[_COMMUNITY_Community 67|Community 67]]
+- [[_COMMUNITY_Community 68|Community 68]]
+- [[_COMMUNITY_Community 69|Community 69]]
+- [[_COMMUNITY_Community 70|Community 70]]
+- [[_COMMUNITY_Community 71|Community 71]]
+- [[_COMMUNITY_Community 72|Community 72]]
+- [[_COMMUNITY_Community 73|Community 73]]
+- [[_COMMUNITY_Community 74|Community 74]]
+- [[_COMMUNITY_Community 75|Community 75]]
+- [[_COMMUNITY_Community 76|Community 76]]
+- [[_COMMUNITY_Community 77|Community 77]]
+- [[_COMMUNITY_Community 78|Community 78]]
+- [[_COMMUNITY_Community 79|Community 79]]
+- [[_COMMUNITY_Community 80|Community 80]]
+- [[_COMMUNITY_Community 81|Community 81]]
+- [[_COMMUNITY_Community 82|Community 82]]
+- [[_COMMUNITY_Community 83|Community 83]]
+- [[_COMMUNITY_Community 84|Community 84]]
+- [[_COMMUNITY_Community 85|Community 85]]
+- [[_COMMUNITY_Community 86|Community 86]]
+- [[_COMMUNITY_Community 87|Community 87]]
+- [[_COMMUNITY_Community 88|Community 88]]
+- [[_COMMUNITY_Community 89|Community 89]]
+- [[_COMMUNITY_Community 90|Community 90]]
+- [[_COMMUNITY_Community 91|Community 91]]
+- [[_COMMUNITY_Community 92|Community 92]]
+- [[_COMMUNITY_Community 93|Community 93]]
+- [[_COMMUNITY_Community 94|Community 94]]
+- [[_COMMUNITY_Community 95|Community 95]]
+- [[_COMMUNITY_Community 96|Community 96]]
+- [[_COMMUNITY_Community 97|Community 97]]
+- [[_COMMUNITY_Community 98|Community 98]]
+- [[_COMMUNITY_Community 99|Community 99]]
+- [[_COMMUNITY_Community 100|Community 100]]
+- [[_COMMUNITY_Community 101|Community 101]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `UI Placeholder Assets` - 5 edges
@@ -127,454 +144,534 @@
 
 ## Communities
 
-### Community 0 - "Select Component"
+### Community 0 - "Community 0"
 Cohesion: 0.2
 Nodes (0): 
 
-### Community 1 - "Sheet Drawer UI"
+### Community 1 - "Community 1"
 Cohesion: 0.2
 Nodes (0): 
 
-### Community 2 - "Sidebar Navigation"
+### Community 2 - "Community 2"
 Cohesion: 0.22
 Nodes (2): SidebarMenuButton(), useSidebar()
 
-### Community 3 - "Drawer Component"
+### Community 3 - "Community 3"
 Cohesion: 0.22
 Nodes (0): 
 
-### Community 4 - "Toast Notifications"
+### Community 4 - "Community 4"
 Cohesion: 0.57
 Nodes (6): addToRemoveQueue(), dispatch(), genId(), reducer(), toast(), useToast()
 
-### Community 5 - "Graphify Config"
+### Community 5 - "Community 5"
 Cohesion: 0.36
 Nodes (8): Architecture/Codebase Query Rule, Code Modification Update Rule, GRAPH_REPORT.md, Graphify Knowledge Graph, graphify-out/ Directory, Graphify Rebuild Command, graphify.watch._rebuild_code, graphify-out/wiki/index.md
 
-### Community 6 - "Breadcrumb Navigation"
+### Community 6 - "Community 6"
 Cohesion: 0.29
 Nodes (0): 
 
-### Community 7 - "Pagination Controls"
+### Community 7 - "Community 7"
 Cohesion: 0.29
 Nodes (0): 
 
-### Community 8 - "Dialog Modal UI"
+### Community 8 - "Community 8"
 Cohesion: 0.33
 Nodes (0): 
 
-### Community 9 - "Menubar Navigation"
+### Community 9 - "Community 9"
 Cohesion: 0.33
 Nodes (0): 
 
-### Community 10 - "UI Placeholder Assets"
-Cohesion: 0.47
-Nodes (6): UI Placeholder Assets, Generic Image Placeholder JPG, Placeholder Logo PNG, Placeholder Logo SVG (Acme Inc Wordmark), Generic Image Placeholder SVG, Placeholder User Avatar
-
-### Community 11 - "App Brand Icons"
+### Community 10 - "Community 10"
 Cohesion: 0.6
 Nodes (6): Apple Touch Icon (180x180), Adaptive Light/Dark Theme Support, App Brand Identity (v0-style Logo), Favicon Dark 32x32, Favicon Light 32x32, App SVG Adaptive Icon
 
-### Community 12 - "Crisis Ticket Workflow"
+### Community 11 - "Community 11"
+Cohesion: 0.47
+Nodes (6): UI Placeholder Assets, Generic Image Placeholder JPG, Placeholder Logo PNG, Placeholder Logo SVG (Acme Inc Wordmark), Generic Image Placeholder SVG, Placeholder User Avatar
+
+### Community 12 - "Community 12"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 13 - "Carousel Component"
+### Community 13 - "Community 13"
 Cohesion: 0.5
 Nodes (2): CarouselNext(), useCarousel()
 
-### Community 14 - "Context Menu UI"
+### Community 14 - "Community 14"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 15 - "Form Controls"
+### Community 15 - "Community 15"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 16 - "Data Table UI"
+### Community 16 - "Community 16"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 17 - "Mobile Blocker Screen"
+### Community 17 - "Community 17"
+Cohesion: 0.4
+Nodes (2): _build_engine(), Build the SQLAlchemy async engine using a custom asyncpg creator.      On networ
+
+### Community 18 - "Community 18"
+Cohesion: 0.6
+Nodes (4): ErrorResponse, PaginatedResponse, SuccessResponse, BaseModel
+
+### Community 19 - "Community 19"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 18 - "Regumap Dashboard"
+### Community 20 - "Community 20"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 19 - "Accordion Component"
+### Community 21 - "Community 21"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 20 - "Alert Dialog UI"
+### Community 22 - "Community 22"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 21 - "Card Layout"
+### Community 23 - "Community 23"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 22 - "Dropdown Menu"
+### Community 24 - "Community 24"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 23 - "OTP Input"
+### Community 25 - "Community 25"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 24 - "Item Component"
+### Community 26 - "Community 26"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 25 - "Navigation Menu"
+### Community 27 - "Community 27"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 26 - "Toggle Group"
+### Community 28 - "Community 28"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 27 - "App Entry Auth"
+### Community 29 - "Community 29"
+Cohesion: 0.67
+Nodes (3): BaseSettings, get_settings(), Settings
+
+### Community 30 - "Community 30"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 28 - "Alert Component"
+### Community 31 - "Community 31"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 29 - "Avatar Component"
+### Community 32 - "Community 32"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 30 - "Chart Component"
+### Community 33 - "Community 33"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 31 - "Command Palette"
+### Community 34 - "Community 34"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 32 - "Popover Component"
+### Community 35 - "Community 35"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 33 - "Radio Group"
+### Community 36 - "Community 36"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 34 - "Scroll Area"
+### Community 37 - "Community 37"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 35 - "Slider Component"
+### Community 38 - "Community 38"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 36 - "Tabs Component"
+### Community 39 - "Community 39"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 37 - "Mobile Detection Hook"
+### Community 40 - "Community 40"
 Cohesion: 0.67
 Nodes (1): useIsMobile()
 
-### Community 38 - "Root Layout"
+### Community 41 - "Community 41"
+Cohesion: 0.67
+Nodes (0): 
+
+### Community 42 - "Community 42"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 39 - "Theme Provider"
+### Community 43 - "Community 43"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 40 - "Active Shipments"
+### Community 44 - "Community 44"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 41 - "Audit Log Page"
+### Community 45 - "Community 45"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 42 - "Cascade Actions Panel"
+### Community 46 - "Community 46"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 43 - "Compliance Sidebar"
+### Community 47 - "Community 47"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 44 - "Pharma Dashboard"
+### Community 48 - "Community 48"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 45 - "Event Badge"
+### Community 49 - "Community 49"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 46 - "Live Tracker Page"
+### Community 50 - "Community 50"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 47 - "Login Card"
+### Community 51 - "Community 51"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 48 - "Map Component"
+### Community 52 - "Community 52"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 49 - "Map Container"
+### Community 53 - "Community 53"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 50 - "Risk Badge"
+### Community 54 - "Community 54"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 51 - "Search Panel"
+### Community 55 - "Community 55"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 52 - "Signature Modal"
+### Community 56 - "Community 56"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 53 - "3D Particle Background"
+### Community 57 - "Community 57"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 54 - "Top Navigation Bar"
+### Community 58 - "Community 58"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 55 - "Aspect Ratio"
+### Community 59 - "Community 59"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 56 - "Badge Component"
+### Community 60 - "Community 60"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 57 - "Button Group"
+### Community 61 - "Community 61"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 58 - "Button Component"
+### Community 62 - "Community 62"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 59 - "Calendar Component"
+### Community 63 - "Community 63"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 60 - "Checkbox Component"
+### Community 64 - "Community 64"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 61 - "Collapsible Component"
+### Community 65 - "Community 65"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 62 - "Empty State"
+### Community 66 - "Community 66"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 63 - "Field Component"
+### Community 67 - "Community 67"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 64 - "Hover Card"
+### Community 68 - "Community 68"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 65 - "Input Group"
+### Community 69 - "Community 69"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 66 - "Input Component"
+### Community 70 - "Community 70"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 67 - "Keyboard Badge"
+### Community 71 - "Community 71"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 68 - "Label Component"
+### Community 72 - "Community 72"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 69 - "Separator"
+### Community 73 - "Community 73"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 70 - "Skeleton Loader"
+### Community 74 - "Community 74"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 71 - "Sonner Toast"
+### Community 75 - "Community 75"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 72 - "Spinner Component"
+### Community 76 - "Community 76"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 73 - "Switch Component"
+### Community 77 - "Community 77"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 74 - "Textarea Component"
+### Community 78 - "Community 78"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 75 - "Tooltip Component"
+### Community 79 - "Community 79"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 76 - "Utility Functions"
+### Community 80 - "Community 80"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 77 - "Next.js Types"
+### Community 81 - "Community 81"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 78 - "Call Status Cards"
+### Community 82 - "Community 82"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 79 - "Crisis Edge States"
+### Community 83 - "Community 83"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 80 - "Shipment Card"
+### Community 84 - "Community 84"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 81 - "Progress Bar"
+### Community 85 - "Community 85"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 82 - "Resizable Panel"
+### Community 86 - "Community 86"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 83 - "Toast Component"
+### Community 87 - "Community 87"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 84 - "Toaster Component"
+### Community 88 - "Community 88"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 85 - "Toggle Component"
+### Community 89 - "Community 89"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 90 - "Community 90"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 91 - "Community 91"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 92 - "Community 92"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 93 - "Community 93"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 94 - "Community 94"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 95 - "Community 95"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 96 - "Community 96"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 97 - "Community 97"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 98 - "Community 98"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 99 - "Community 99"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 100 - "Community 100"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 101 - "Community 101"
 Cohesion: 1.0
 Nodes (0): 
 
 ## Knowledge Gaps
-- **3 isolated node(s):** `graphify.watch._rebuild_code`, `Code Modification Update Rule`, `Placeholder User Avatar`
+- **4 isolated node(s):** `graphify.watch._rebuild_code`, `Code Modification Update Rule`, `Placeholder User Avatar`, `Build the SQLAlchemy async engine using a custom asyncpg creator.      On networ`
   These have ≤1 connection - possible missing edges or undocumented components.
-- **Thin community `Root Layout`** (2 nodes): `layout.tsx`, `RootLayout()`
+- **Thin community `Community 42`** (2 nodes): `layout.tsx`, `RootLayout()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Theme Provider`** (2 nodes): `theme-provider.tsx`, `ThemeProvider()`
+- **Thin community `Community 43`** (2 nodes): `theme-provider.tsx`, `ThemeProvider()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Active Shipments`** (2 nodes): `HealthPill()`, `active-shipments-page.tsx`
+- **Thin community `Community 44`** (2 nodes): `HealthPill()`, `active-shipments-page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Audit Log Page`** (2 nodes): `clearFilters()`, `audit-log-page.tsx`
+- **Thin community `Community 45`** (2 nodes): `clearFilters()`, `audit-log-page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Cascade Actions Panel`** (2 nodes): `formatTime()`, `cascade-actions-panel.tsx`
+- **Thin community `Community 46`** (2 nodes): `formatTime()`, `cascade-actions-panel.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Compliance Sidebar`** (2 nodes): `ComplianceSidebar()`, `compliance-sidebar.tsx`
+- **Thin community `Community 47`** (2 nodes): `ComplianceSidebar()`, `compliance-sidebar.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Pharma Dashboard`** (2 nodes): `Dashboard()`, `dashboard.tsx`
+- **Thin community `Community 48`** (2 nodes): `Dashboard()`, `dashboard.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Event Badge`** (2 nodes): `EventBadge()`, `event-badge.tsx`
+- **Thin community `Community 49`** (2 nodes): `EventBadge()`, `event-badge.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Live Tracker Page`** (2 nodes): `live-tracker-page.tsx`, `handleShipmentSelect()`
+- **Thin community `Community 50`** (2 nodes): `live-tracker-page.tsx`, `handleShipmentSelect()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Login Card`** (2 nodes): `login-card.tsx`, `handleSignIn()`
+- **Thin community `Community 51`** (2 nodes): `login-card.tsx`, `handleSignIn()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Map Component`** (2 nodes): `map-component.tsx`, `MapComponent()`
+- **Thin community `Community 52`** (2 nodes): `map-component.tsx`, `MapComponent()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Map Container`** (2 nodes): `map-container.tsx`, `MapContainer()`
+- **Thin community `Community 53`** (2 nodes): `map-container.tsx`, `MapContainer()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Risk Badge`** (2 nodes): `risk-badge.tsx`, `RiskBadge()`
+- **Thin community `Community 54`** (2 nodes): `risk-badge.tsx`, `RiskBadge()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Search Panel`** (2 nodes): `search-panel.tsx`, `SearchPanel()`
+- **Thin community `Community 55`** (2 nodes): `search-panel.tsx`, `SearchPanel()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Signature Modal`** (2 nodes): `signature-modal.tsx`, `handleSign()`
+- **Thin community `Community 56`** (2 nodes): `signature-modal.tsx`, `handleSign()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `3D Particle Background`** (2 nodes): `three-background.tsx`, `ParticleField()`
+- **Thin community `Community 57`** (2 nodes): `three-background.tsx`, `ParticleField()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Top Navigation Bar`** (2 nodes): `top-nav.tsx`, `TopNav()`
+- **Thin community `Community 58`** (2 nodes): `top-nav.tsx`, `TopNav()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Aspect Ratio`** (2 nodes): `AspectRatio()`, `aspect-ratio.tsx`
+- **Thin community `Community 59`** (2 nodes): `AspectRatio()`, `aspect-ratio.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Badge Component`** (2 nodes): `Badge()`, `badge.tsx`
+- **Thin community `Community 60`** (2 nodes): `Badge()`, `badge.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Button Group`** (2 nodes): `ButtonGroup()`, `button-group.tsx`
+- **Thin community `Community 61`** (2 nodes): `ButtonGroup()`, `button-group.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Button Component`** (2 nodes): `cn()`, `button.tsx`
+- **Thin community `Community 62`** (2 nodes): `cn()`, `button.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Calendar Component`** (2 nodes): `cn()`, `calendar.tsx`
+- **Thin community `Community 63`** (2 nodes): `cn()`, `calendar.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Checkbox Component`** (2 nodes): `Checkbox()`, `checkbox.tsx`
+- **Thin community `Community 64`** (2 nodes): `Checkbox()`, `checkbox.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Collapsible Component`** (2 nodes): `Collapsible()`, `collapsible.tsx`
+- **Thin community `Community 65`** (2 nodes): `Collapsible()`, `collapsible.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Empty State`** (2 nodes): `cn()`, `empty.tsx`
+- **Thin community `Community 66`** (2 nodes): `cn()`, `empty.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Field Component`** (2 nodes): `cn()`, `field.tsx`
+- **Thin community `Community 67`** (2 nodes): `cn()`, `field.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Hover Card`** (2 nodes): `hover-card.tsx`, `HoverCard()`
+- **Thin community `Community 68`** (2 nodes): `hover-card.tsx`, `HoverCard()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Input Group`** (2 nodes): `input-group.tsx`, `cn()`
+- **Thin community `Community 69`** (2 nodes): `input-group.tsx`, `cn()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Input Component`** (2 nodes): `input.tsx`, `Input()`
+- **Thin community `Community 70`** (2 nodes): `input.tsx`, `Input()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Keyboard Badge`** (2 nodes): `kbd.tsx`, `cn()`
+- **Thin community `Community 71`** (2 nodes): `kbd.tsx`, `cn()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Label Component`** (2 nodes): `label.tsx`, `Label()`
+- **Thin community `Community 72`** (2 nodes): `label.tsx`, `Label()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Separator`** (2 nodes): `separator.tsx`, `Separator()`
+- **Thin community `Community 73`** (2 nodes): `separator.tsx`, `Separator()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Skeleton Loader`** (2 nodes): `skeleton.tsx`, `Skeleton()`
+- **Thin community `Community 74`** (2 nodes): `skeleton.tsx`, `Skeleton()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Sonner Toast`** (2 nodes): `sonner.tsx`, `Toaster()`
+- **Thin community `Community 75`** (2 nodes): `sonner.tsx`, `Toaster()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Spinner Component`** (2 nodes): `spinner.tsx`, `Spinner()`
+- **Thin community `Community 76`** (2 nodes): `spinner.tsx`, `Spinner()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Switch Component`** (2 nodes): `switch.tsx`, `Switch()`
+- **Thin community `Community 77`** (2 nodes): `switch.tsx`, `Switch()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Textarea Component`** (2 nodes): `textarea.tsx`, `cn()`
+- **Thin community `Community 78`** (2 nodes): `textarea.tsx`, `cn()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Tooltip Component`** (2 nodes): `tooltip.tsx`, `TooltipContent()`
+- **Thin community `Community 79`** (2 nodes): `tooltip.tsx`, `TooltipContent()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Utility Functions`** (2 nodes): `utils.ts`, `cn()`
+- **Thin community `Community 80`** (2 nodes): `utils.ts`, `cn()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Next.js Types`** (1 nodes): `next-env.d.ts`
+- **Thin community `Community 81`** (2 nodes): `main.py`, `main()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Call Status Cards`** (1 nodes): `call-status-cards.tsx`
+- **Thin community `Community 82`** (1 nodes): `next-env.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Crisis Edge States`** (1 nodes): `crisis-edge-states.tsx`
+- **Thin community `Community 83`** (1 nodes): `call-status-cards.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Shipment Card`** (1 nodes): `shipment-card.tsx`
+- **Thin community `Community 84`** (1 nodes): `crisis-edge-states.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Progress Bar`** (1 nodes): `progress.tsx`
+- **Thin community `Community 85`** (1 nodes): `shipment-card.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Resizable Panel`** (1 nodes): `resizable.tsx`
+- **Thin community `Community 86`** (1 nodes): `progress.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Toast Component`** (1 nodes): `toast.tsx`
+- **Thin community `Community 87`** (1 nodes): `resizable.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Toaster Component`** (1 nodes): `toaster.tsx`
+- **Thin community `Community 88`** (1 nodes): `toast.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Toggle Component`** (1 nodes): `toggle.tsx`
+- **Thin community `Community 89`** (1 nodes): `toaster.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-
-## Suggested Questions
-_Questions this graph is uniquely positioned to answer:_
-
-- **Are the 5 inferred relationships involving `UI Placeholder Assets` (e.g. with `Placeholder Logo PNG` and `Placeholder Logo SVG (Acme Inc Wordmark)`) actually correct?**
-  _`UI Placeholder Assets` has 5 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `graphify.watch._rebuild_code`, `Code Modification Update Rule`, `Placeholder User Avatar` to the rest of the system?**
-  _3 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Thin community `Community 90`** (1 nodes): `toggle.tsx`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 91`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 92`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 93`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 94`** (1 nodes): `router.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 95`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 96`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 97`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 98`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 99`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 100`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 101`** (1 nodes): `__init__.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
