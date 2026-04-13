@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//usr/**)",
+      "Bash(py --version)",
+      "Read(//c/Users/amans/anaconda3/bin/**)",
+      "Read(//c/Users/amans/miniconda3/bin/**)",
+      "Bash(ls graphify-out/.graphify_chunk_*.json)",
+      "Bash(.venv/Scripts/python -c ':*)",
+      "Bash(ping -n 2 db.walomjvwobideerahsti.supabase.co)",
+      "Bash(ping -n 1 aws-1-us-east-1.pooler.supabase.com)",
+      "Bash(nslookup aws-1-us-east-1.pooler.supabase.com)",
+      "Bash(uv run:*)",
+      "Bash(curl -s http://localhost:8000/docs)",
+      "Bash(curl -s http://localhost:8000/)",
+      "Bash(curl -s http://localhost:8000/api/v1/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs)",
+      "Bash(curl -s http://localhost:8000/docs -o /dev/null -w \"GET /docs → %{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:8000/api/v1/ -w \"\\\\nGET /api/v1/ → %{http_code}\\\\n\")",
+      "Bash(taskkill /F /IM python.exe /FI \"WINDOWTITLE eq uvicorn*\")",
+      "Bash(pkill -f uvicorn)",
+      "Bash(curl -s http://localhost:8000/docs -o /dev/null -w \"GET /docs       → %{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:8000/api/v1/ -w \"GET /api/v1/   → %{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:8000/docs -o /dev/null -w \"GET /docs      → %{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:8000/api/v1/ -w \"GET /api/v1/  → %{http_code}\\\\n\")"
+    ]
+  }
+}
