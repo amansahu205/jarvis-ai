@@ -1,0 +1,31 @@
+# Backend-specific ignores (root .gitignore handles the rest)
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Project-specific large assets
+data/regulatory_docs/
+
+# Supabase local dev
+.supabase/
+
+# Node (Supabase JS client)
+node_modules/

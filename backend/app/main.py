@@ -1,0 +1,43 @@
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
+from app.config import settings
+from app.database import create_tables
+from app.models import *
+from app.api.v1.router import router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await create_tables()
+    yield
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title='JarvisAI',
+        version='1.0.0',
+        docs_url='/docs' if settings.DEBUG else None,
+        lifespan=lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[settings.FRONTEND_URL],
+        allow_credentials=True,
+        allow_methods=['*'],
+        allow_headers=['*'],
+    )
+
+    @app.exception_handler(Exception)
+    async def global_handler(request: Request, exc: Exception):
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': str(exc), 'code': 'INTERNAL_ERROR'}
+        )
+
+    app.include_router(router, prefix='/api/v1')
+    return app
+
+
+app = create_app()
