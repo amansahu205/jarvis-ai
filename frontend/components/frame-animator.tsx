@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Image from 'next/image'
 
 interface FrameAnimatorProps {
   frameFolder: string // e.g., 'hero' or 'compliance'
@@ -33,7 +32,7 @@ export function FrameAnimator({
       for (let i = 1; i <= frameCount; i++) {
         const img = new Image()
         const frameNum = String(i).padStart(4, '0')
-        img.src = `/images/frames/${frameFolder}/frame_${frameNum}.webp`
+        img.src = `/images/frames/${frameFolder}/frame_${frameNum}.png`
         img.crossOrigin = 'anonymous'
         images.push(img)
       }
@@ -84,29 +83,34 @@ export function FrameAnimator({
 
     const img = imagesRef.current[currentFrame]
     
-    img.onload = () => {
-      // Set canvas size to match image
-      if (canvas.width !== img.width || canvas.height !== img.height) {
-        canvas.width = img.width
-        canvas.height = img.height
-      }
-      ctx.drawImage(img, 0, 0)
+    const drawFrame = () => {
+      // Get container dimensions
+      const container = canvas.parentElement
+      if (!container) return
+      
+      const width = container.clientWidth || 1920
+      const height = container.clientHeight || 1080
+      
+      canvas.width = width
+      canvas.height = height
+      
+      // Draw image scaled to fit container
+      ctx.drawImage(img, 0, 0, width, height)
     }
-
-    // Draw immediately if image is already loaded
+    
     if (img.complete) {
-      canvas.width = img.width
-      canvas.height = img.height
-      ctx.drawImage(img, 0, 0)
+      drawFrame()
+    } else {
+      img.onload = drawFrame
     }
   }, [currentFrame])
 
   return (
-    <div className={`relative w-full h-full ${className}`}>
+    <div className={`relative w-full h-full bg-black ${className}`}>
       <canvas
         ref={canvasRef}
-        className="w-full h-full object-cover"
-        style={{ display: 'block' }}
+        className="w-full h-full block"
+        style={{ display: 'block', width: '100%', height: '100%' }}
       />
       
       {/* Playback controls (optional) */}
