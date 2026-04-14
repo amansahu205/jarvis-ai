@@ -91,7 +91,7 @@ export default function POUploadModal({
   }, [state])
 
   // Simulate parsing
-  React.useEffect(() => {
+  useEffect(() => {
     if (state !== 'parsing') return
     const timer = setTimeout(() => {
       setParsedData(MOCK_PARSED_SHIPMENT)
