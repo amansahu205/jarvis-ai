@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   FileText,
   Route,
@@ -24,6 +25,15 @@ import {
 } from 'lucide-react'
 import { useInView } from '@/lib/use-in-view'
 import { AGENTS, FEATURES, STATS, COMPLIANCE_REGS, TERMINAL_LOGS } from '@/lib/landing-data'
+
+// Showcase images for scrolling animation
+const SHOWCASE_IMAGES = [
+  { src: '/images/showcase-dashboard.jpg', alt: 'PharmaGuard Dashboard - Real-time shipment monitoring', title: 'Command Center' },
+  { src: '/images/showcase-routes.jpg', alt: 'Route Planning Interface - Global logistics optimization', title: 'Route Planner' },
+  { src: '/images/showcase-crisis.jpg', alt: 'Crisis Management - Temperature excursion handling', title: 'Crisis Response' },
+  { src: '/images/showcase-compliance.jpg', alt: 'Compliance Dashboard - FDA WHO GDP verification', title: 'Compliance Hub' },
+  { src: '/images/showcase-analytics.jpg', alt: 'Analytics Dashboard - Performance metrics', title: 'Analytics' },
+]
 
 // Icon mapping
 const iconMap: Record<string, React.ElementType> = {
@@ -66,6 +76,73 @@ function AnimatedCounter({ value, suffix, duration }: { value: number; suffix: s
     <span ref={ref} className="tabular-nums">
       {count.toLocaleString()}{suffix}
     </span>
+  )
+}
+
+// Scrolling showcase component
+function ScrollingShowcase() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ['start end', 'end start']
+  })
+  
+  const x = useTransform(scrollYProgress, [0, 1], ['0%', '-50%'])
+  
+  return (
+    <section ref={containerRef} className="relative py-24 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-6 mb-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center"
+        >
+          <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
+            See It In Action
+          </h2>
+          <p className="text-white/50 max-w-2xl mx-auto">
+            A glimpse into the PharmaGuard experience. Scroll to explore our interfaces.
+          </p>
+        </motion.div>
+      </div>
+      
+      {/* Scrolling images track */}
+      <motion.div 
+        style={{ x }}
+        className="flex gap-6 pl-6"
+      >
+        {[...SHOWCASE_IMAGES, ...SHOWCASE_IMAGES].map((image, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: (i % 5) * 0.1 }}
+            className="relative flex-shrink-0 group"
+          >
+            <div className="relative w-[400px] md:w-[500px] lg:w-[600px] aspect-video rounded-xl overflow-hidden border border-white/10 bg-[#0D1117]">
+              <Image
+                src={image.src}
+                alt={image.alt}
+                fill
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              {/* Overlay gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#080B0F] via-transparent to-transparent opacity-60" />
+              {/* Title badge */}
+              <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-lg bg-[#080B0F]/80 backdrop-blur-sm border border-white/10">
+                <span className="text-sm font-medium text-white">{image.title}</span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+      
+      {/* Fade edges */}
+      <div className="absolute top-0 left-0 w-32 h-full bg-gradient-to-r from-[#080B0F] to-transparent pointer-events-none z-10" />
+      <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-[#080B0F] to-transparent pointer-events-none z-10" />
+    </section>
   )
 }
 
@@ -320,6 +397,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Scrolling Showcase */}
+      <ScrollingShowcase />
 
       {/* How It Works */}
       <section id="how-it-works" className="relative py-24">
