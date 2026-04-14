@@ -134,7 +134,27 @@ test-results/
 .nyc_output/
 
 
+# ─── AI tools & editor configs ───────────────────────────────
+# Claude Code
+.claude/
+CLAUDE.md
+# Keep .claude/settings.json if you want to share project-level settings:
+# !.claude/settings.json
+
+# Windsurf
+.windsurf/
+
+# Agent runner
+.agent/
+
+# Graphify (auto-generated knowledge graph — regenerate with `graphify`)
+graphify-out/
+
+
 # ─── Project-specific ────────────────────────────────────────
+# Generated/imported dataset snapshots
+data/
+
 # Regulatory documents (large binary/PDF assets)
 backend/data/regulatory_docs/
 
