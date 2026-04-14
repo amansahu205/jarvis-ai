@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ShieldCheck, Eye, EyeOff, Loader2 } from "lucide-react"
+import { login, ApiError } from "@/lib/api"
 
 const roles = ["Logistics Planner", "Responsible Person"]
 
@@ -16,13 +17,26 @@ export function LoginCard({ onLogin }: LoginCardProps) {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 2000))
-    setLoading(false)
-    onLogin?.(selectedRole)
+    try {
+      const data = await login(email, password)
+      onLogin?.(data.role)
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.status === 401
+            ? 'Invalid email or password.'
+            : err.message
+          : 'Could not reach server. Is the backend running?'
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
   const fieldVariants = {
@@ -241,6 +255,22 @@ export function LoginCard({ onLogin }: LoginCardProps) {
             </button>
           </div>
         </motion.div>
+
+        {/* Error */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 px-3 py-2 rounded-lg text-xs text-center font-mono"
+            style={{
+              background: 'rgba(255,68,68,0.08)',
+              border: '1px solid rgba(255,68,68,0.25)',
+              color: '#FF6B6B',
+            }}
+          >
+            {error}
+          </motion.div>
+        )}
 
         {/* Sign In Button */}
         <motion.div variants={fieldVariants} transition={{ duration: 0.4 }} className="mt-6">

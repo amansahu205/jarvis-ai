@@ -1,7 +1,8 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
+import { analyzeRoute, spatialCheck, complianceCheck, ApiError } from '@/lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin,
@@ -89,10 +90,17 @@ export function ReguMapDashboard() {
   const [transitMode, setTransitMode] = useState<'air' | 'maritime'>('maritime')
   const [cargoType, setCargoType] = useState('vaccine')
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'complete'>('idle')
-  const [activeJurisdiction, setActiveJurisdiction] = useState('egypt')
+  const [activeJurisdiction, setActiveJurisdiction] = useState<string | null>(null)
   const [expandedCard, setExpandedCard] = useState<string | null>(null)
   const [cards, setCards] = useState<ComplianceCard[]>(complianceCards)
-  const mapRef = useRef(null)
+  const [routeStats, setRouteStats] = useState(['~22.4h transit', '4 jurisdictions', 'MARITIME'])
+  const [riskCounts, setRiskCounts] = useState({ pass: 3, flag: 1, block: 0 })
+  const [routeLabel, setRouteLabel] = useState('BOM → JFK · Maritime · ~22.4h · Suez Canal route')
+  const [apiWaypoints, setApiWaypoints] = useState<[number, number][]>([])
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null)
+
+  // Extract IATA/LOCODE code from display strings like "BOM — Chhatrapati Shivaji, Mumbai"
+  const parseCode = (s: string) => s.trim().split(/[\s\u2014\-]/)[0].toUpperCase()
 
   const handleSwap = () => {
     const temp = origin
@@ -102,8 +110,47 @@ export function ReguMapDashboard() {
 
   const handleAnalyze = async () => {
     setAnalysisState('loading')
-    await new Promise((r) => setTimeout(r, 1800))
-    setAnalysisState('complete')
+    setAnalyzeError(null)
+    try {
+      const originCode = parseCode(origin)
+      const destCode = parseCode(destination)
+
+      const route = await analyzeRoute(originCode, destCode, transitMode, cargoType)
+      setApiWaypoints(route.waypoints)
+
+      const spatial = await spatialCheck(originCode, destCode, transitMode, route.waypoints)
+      const compliance = await complianceCheck(spatial.jurisdictions)
+
+      const newCards: ComplianceCard[] = compliance.jurisdictions.map((jx) => ({
+        id: jx.id,
+        jurisdiction: `${jx.name}`,
+        label: jx.type as ComplianceCard['label'],
+        emoji: jx.flag,
+        regulation: jx.regulation,
+        clause: jx.clause,
+        citation: jx.citation_url ? `View: ${jx.citation} ↗` : jx.citation,
+        badge: jx.badge,
+        flagDetail: jx.warning ?? undefined,
+      }))
+      setCards(newCards)
+      if (newCards[0]) setActiveJurisdiction(newCards[0].id)
+
+      const pass = compliance.jurisdictions.filter((j) => j.badge === 'PASS').length
+      const flag = compliance.jurisdictions.filter((j) => j.badge === 'FLAG').length
+      const block = compliance.jurisdictions.filter((j) => j.badge === 'BLOCK').length
+      setRiskCounts({ pass, flag, block })
+      setRouteStats([
+        `~${route.transit_time_hours}h transit`,
+        `${compliance.jurisdictions.length} jurisdictions`,
+        route.mode.toUpperCase(),
+      ])
+      setRouteLabel(`${originCode} → ${destCode} · ${route.mode} · ~${route.transit_time_hours}h`)
+
+      setAnalysisState('complete')
+    } catch (err) {
+      setAnalyzeError(err instanceof ApiError ? err.message : 'Analysis failed. Is the backend running?')
+      setAnalysisState('idle')
+    }
   }
 
   const toggleCardExpand = (id: string) => {
@@ -113,7 +160,9 @@ export function ReguMapDashboard() {
   return (
     <div className="relative w-full h-screen overflow-hidden" style={{ background: '#080B0F' }}>
       {/* Map */}
-      <div ref={mapRef} className="w-full h-screen" />
+      <div className="w-full h-screen">
+        <MapComponent waypoints={apiWaypoints} />
+      </div>
 
       {/* Route Planner Panel (Top Left) */}
       <motion.div
@@ -313,6 +362,14 @@ export function ReguMapDashboard() {
           </span>
         </motion.button>
 
+        {/* Error */}
+        {analyzeError && (
+          <div className="mt-3 px-3 py-2 rounded-lg text-xs font-mono"
+            style={{ background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.25)', color: '#FF6B6B' }}>
+            {analyzeError}
+          </div>
+        )}
+
         {/* Route Stats */}
         {analysisState === 'complete' && (
           <motion.div
@@ -320,7 +377,7 @@ export function ReguMapDashboard() {
             animate={{ y: 0, opacity: 1 }}
             className="flex gap-2 mt-4"
           >
-            {['~22.4h transit', '4 jurisdictions', 'MARITIME'].map((stat, i) => (
+            {routeStats.map((stat, i) => (
               <motion.span
                 key={stat}
                 initial={{ x: -8, opacity: 0 }}
@@ -374,7 +431,7 @@ export function ReguMapDashboard() {
                 color: '#8B949E',
               }}
             >
-              BOM → JFK · Maritime · ~22.4h · Suez Canal route
+              {routeLabel}
             </div>
             <div
               className="text-xs px-3 py-1 rounded-lg font-mono text-[#58A6FF]"
@@ -384,7 +441,7 @@ export function ReguMapDashboard() {
                 width: 'fit-content',
               }}
             >
-              4 jurisdictions
+              {cards.length} jurisdictions
             </div>
           </div>
 
@@ -549,9 +606,9 @@ export function ReguMapDashboard() {
           </span>
           <div className="flex gap-4">
             {[
-              { label: '3 PASS', color: '#1ECC8B', bg: 'rgba(30,204,139,0.1)' },
-              { label: '1 FLAG', color: '#F0A500', bg: 'rgba(240,165,0,0.1)' },
-              { label: '0 BLOCK', color: '#484F58', bg: 'rgba(72,79,88,0.1)' },
+              { label: `${riskCounts.pass} PASS`, color: '#1ECC8B', bg: 'rgba(30,204,139,0.1)' },
+              { label: `${riskCounts.flag} FLAG`, color: riskCounts.flag > 0 ? '#F0A500' : '#484F58', bg: riskCounts.flag > 0 ? 'rgba(240,165,0,0.1)' : 'rgba(72,79,88,0.1)' },
+              { label: `${riskCounts.block} BLOCK`, color: riskCounts.block > 0 ? '#FF4444' : '#484F58', bg: riskCounts.block > 0 ? 'rgba(255,68,68,0.1)' : 'rgba(72,79,88,0.1)' },
             ].map((item) => (
               <span
                 key={item.label}
