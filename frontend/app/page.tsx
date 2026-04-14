@@ -299,7 +299,7 @@ export default function LandingPage() {
       <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
         {/* Video frame background */}
         <div className="absolute inset-0 z-0">
-          <FrameAnimator frameFolder="hero" frameCount={80} fps={30} autoplay={true} loop={true} className="absolute inset-0" />
+          <FrameAnimator frameFolder="hero" frameCount={80} fps={10} autoplay={true} loop={true} className="absolute inset-0" />
         </div>
 
         {/* Background effects */}
