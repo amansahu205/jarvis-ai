@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileUp,
@@ -82,7 +82,7 @@ export default function POUploadModal({
   const dropZoneRef = useRef<HTMLDivElement>(null)
 
   // Cycling loading messages
-  React.useEffect(() => {
+  useEffect(() => {
     if (state !== 'parsing') return
     const interval = setInterval(() => {
       setLoadingStep((prev) => (prev + 1) % loadingMessages.length)
@@ -91,7 +91,7 @@ export default function POUploadModal({
   }, [state])
 
   // Simulate parsing
-  React.useEffect(() => {
+  useEffect(() => {
     if (state !== 'parsing') return
     const timer = setTimeout(() => {
       setParsedData(MOCK_PARSED_SHIPMENT)
