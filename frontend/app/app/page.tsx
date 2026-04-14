@@ -11,6 +11,7 @@ import { AuditLogPage } from '@/components/pharma/audit-log-page'
 import { ActiveShipmentsPage } from '@/components/pharma/active-shipments-page'
 import { LiveTrackerPage } from '@/components/pharma/live-tracker-page'
 import { MobileBlocker } from '@/components/pharma/mobile-blocker'
+import { FrameAnimator } from '@/components/frame-animator'
 
 type View = 'audit' | 'shipments' | 'tracker' | 'regumap' | 'crisis' | 'dashboard'
 
@@ -26,25 +27,32 @@ export default function AppPage() {
   if (!userRole) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center"
+        className="relative min-h-screen flex items-center justify-center overflow-hidden"
         style={{ background: '#080B0F' }}
       >
-        {/* Subtle dot grid background */}
-        <div className="absolute inset-0 dot-grid opacity-20 pointer-events-none" />
+        {/* CTA frame animation background */}
+        <div className="absolute inset-0 z-0">
+          <FrameAnimator frameFolder="cta" frameCount={80} fps={10} autoplay loop className="absolute inset-0" />
+          {/* Dark overlay for readability */}
+          <div className="absolute inset-0 bg-black/60" />
+        </div>
+
+        {/* Subtle dot grid */}
+        <div className="absolute inset-0 dot-grid opacity-10 pointer-events-none z-10" />
 
         {/* Glow effects */}
-        <div className="absolute top-1/4 left-1/3 w-96 h-96 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(88,166,255,0.06) 0%, transparent 70%)' }}
+        <div className="absolute top-1/4 left-1/3 w-96 h-96 rounded-full pointer-events-none z-10"
+          style={{ background: 'radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 70%)' }}
         />
-        <div className="absolute bottom-1/4 right-1/3 w-96 h-96 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(30,204,139,0.04) 0%, transparent 70%)' }}
+        <div className="absolute bottom-1/4 right-1/3 w-96 h-96 rounded-full pointer-events-none z-10"
+          style={{ background: 'radial-gradient(circle, rgba(30,204,139,0.05) 0%, transparent 70%)' }}
         />
 
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="relative z-10"
+          className="relative z-20"
         >
           <LoginCard onLogin={handleLogin} />
         </motion.div>
