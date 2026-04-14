@@ -99,17 +99,17 @@ function ScrollingShowcase() {
           </p>
         </motion.div>
       </div>
-      
+
       {/* Infinite scrolling carousel */}
       <div className="relative">
-        <motion.div 
+        <motion.div
           className="flex gap-6"
           animate={{ x: ['0%', '-50%'] }}
           transition={{
             x: {
               repeat: Infinity,
               repeatType: 'loop',
-              duration: 15,
+              duration: 5,
               ease: 'linear',
             },
           }}
@@ -137,7 +137,7 @@ function ScrollingShowcase() {
           ))}
         </motion.div>
       </div>
-      
+
       {/* Fade edges */}
       <div className="absolute top-0 left-0 w-32 h-full bg-gradient-to-r from-[#080B0F] to-transparent pointer-events-none z-10" />
       <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-[#080B0F] to-transparent pointer-events-none z-10" />
@@ -231,9 +231,8 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#080B0F] text-white overflow-x-hidden">
       {/* Sticky Navigation */}
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled ? 'bg-[#080B0F]/90 backdrop-blur-xl border-b border-white/5' : ''
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-[#080B0F]/90 backdrop-blur-xl border-b border-white/5' : ''
+          }`}
       >
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
