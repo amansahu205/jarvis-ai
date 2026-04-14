@@ -1,10 +1,12 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState, useEffect } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { motion } from "framer-motion"
 import * as THREE from "three"
 import { Monitor, X, Maximize2, Globe } from "lucide-react"
+
+const MIN_WIDTH = 1200
 
 // Particle field for background
 function ParticleField() {
@@ -65,6 +67,27 @@ function BackgroundScene() {
 }
 
 export function MobileBlocker() {
+  const [isMobile, setIsMobile] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    
+    const checkWidth = () => {
+      setIsMobile(window.innerWidth < MIN_WIDTH)
+    }
+    
+    checkWidth()
+    window.addEventListener('resize', checkWidth)
+    return () => window.removeEventListener('resize', checkWidth)
+  }, [])
+
+  // Don't render anything until mounted (avoids hydration mismatch)
+  if (!mounted) return null
+  
+  // Only show blocker on mobile/small screens
+  if (!isMobile) return null
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center" style={{ background: "#080B0F" }}>
       {/* Three.js background */}
