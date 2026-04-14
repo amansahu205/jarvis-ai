@@ -7,6 +7,7 @@ import { TopNav } from "@/components/pharma/top-nav"
 import { AuditLogPage } from "@/components/pharma/audit-log-page"
 import { ActiveShipmentsPage } from "@/components/pharma/active-shipments-page"
 import { LiveTrackerPage } from "@/components/pharma/live-tracker-page"
+import { Dashboard } from "@/components/pharma/dashboard"
 import { ReguMapDashboard } from "@/components/pharma/regumap-dashboard"
 import { CrisisTicketPage } from "@/components/pharma/crisis-ticket-page"
 import { MobileBlocker } from "@/components/pharma/mobile-blocker"
@@ -102,8 +103,8 @@ export default function Page() {
 
       {/* Content */}
       {currentView === "crisis" && <CrisisTicketPage userRole={userRole} />}
+      {currentView === "dashboard" && <Dashboard userRole={userRole} />}
       {currentView === "regumap" && <ReguMapDashboard />}
-      {currentView === "dashboard" && <ReguMapDashboard />}
       {currentView === "audit" && <AuditLogPage />}
       {currentView === "shipments" && <ActiveShipmentsPage />}
       {currentView === "tracker" && <LiveTrackerPage />}
