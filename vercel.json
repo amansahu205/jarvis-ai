@@ -1,8 +1,8 @@
 {
-  "buildCommand": "npm --prefix ./frontend run build",
+  "buildCommand": "npm run build",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "outputDirectory": "frontend/.next",
+  "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_APP_NAME": "PharmaGuard AI"
   }
