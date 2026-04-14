@@ -109,7 +109,7 @@ function ScrollingShowcase() {
             x: {
               repeat: Infinity,
               repeatType: 'loop',
-              duration: 30,
+              duration: 15,
               ease: 'linear',
             },
           }}
