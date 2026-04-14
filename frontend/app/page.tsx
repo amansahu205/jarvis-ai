@@ -24,6 +24,7 @@ import {
   X,
 } from 'lucide-react'
 import { useInView } from '@/lib/use-in-view'
+import { FrameAnimator } from '@/components/frame-animator'
 import { AGENTS, FEATURES, STATS, COMPLIANCE_REGS, TERMINAL_LOGS } from '@/lib/landing-data'
 
 // Showcase images for scrolling animation
@@ -296,10 +297,15 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+        {/* Video frame background */}
+        <div className="absolute inset-0 z-0">
+          <FrameAnimator frameFolder="hero" frameCount={80} fps={30} autoplay={true} loop={true} className="absolute inset-0" />
+        </div>
+
         {/* Background effects */}
-        <div className="absolute inset-0 dot-grid opacity-30" />
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#58A6FF]/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#1ECC8B]/10 rounded-full blur-3xl" />
+        <div className="absolute inset-0 dot-grid opacity-30 z-1" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#58A6FF]/10 rounded-full blur-3xl z-1" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#1ECC8B]/10 rounded-full blur-3xl z-1" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-20">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -497,8 +503,13 @@ export default function LandingPage() {
       </section>
 
       {/* Compliance Section */}
-      <section id="compliance" className="relative py-24">
-        <div className="max-w-7xl mx-auto px-6">
+      <section id="compliance" className="relative py-24 overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <FrameAnimator frameFolder="compliance" frameCount={80} fps={30} autoplay={true} loop={true} className="absolute inset-0" />
+          <div className="absolute inset-0 bg-black/40" />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left: Copy */}
             <div className="space-y-6">

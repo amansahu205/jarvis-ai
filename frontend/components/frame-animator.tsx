@@ -33,7 +33,7 @@ export function FrameAnimator({
       for (let i = 1; i <= frameCount; i++) {
         const img = new Image()
         const frameNum = String(i).padStart(4, '0')
-        img.src = `/images/frames/${frameFolder}/frame_${frameNum}.webp`
+        img.src = `/images/frames/${frameFolder}/frame_${frameNum}.png`
         img.crossOrigin = 'anonymous'
         images.push(img)
       }
