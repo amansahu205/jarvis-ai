@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { motion } from "framer-motion"
-import { getActiveShipments } from "@/lib/api"
+import { getActiveShipments, type ActiveShipmentItem } from "@/lib/api"
 import * as THREE from "three"
 import { ShipmentCard } from "./shipment-card"
 
@@ -19,6 +19,24 @@ function BackgroundScene() {
   )
 }
 
+interface ActiveShipmentsPageProps {
+  initialShipments?: ActiveShipmentItem[]
+}
+
+function mapShipmentCards(rows: ActiveShipmentItem[]) {
+  return rows.map((row) => ({
+    status: row.status === "feed_lost" ? "feed-lost" : row.status,
+    shipmentId: row.shipmentId,
+    route: `${row.origin} → ${row.destination}`,
+    temp: row.currentTemp,
+    trend: row.trend ?? undefined,
+    timeRemaining: row.eta,
+    countdownTime: row.countdownTime ?? row.eta,
+    crisisMessage: row.crisisMessage ?? undefined,
+    warningNote: row.warningNote ?? undefined,
+    lastReading: row.lastReading ?? undefined,
+  }))
+}
 // System health pill component
 function HealthPill({ name, status }: { name: string; status: "online" | "degraded" | "offline" }) {
   const config = {
@@ -44,67 +62,26 @@ function HealthPill({ name, status }: { name: string; status: "online" | "degrad
   )
 }
 
-export function ActiveShipmentsPage() {
-  const [shipments, setShipments] = useState<any[]>([
-    {
-      status: "critical" as const,
-      shipmentId: "SHP-2026-0441",
-      route: "Mumbai → New York",
-      temp: "7.4°C",
-      trend: "+0.6°C/hr",
-      timeRemaining: "9h 42m",
-      countdownTime: "09:42:17",
-      crisisMessage: "Crisis Active — Pending RP Approval",
-    },
-    {
-      status: "warning" as const,
-      shipmentId: "SHP-2026-0438",
-      route: "Frankfurt → Singapore",
-      temp: "3.1°C",
-      timeRemaining: "6h 14m",
-      countdownTime: "06:14:00",
-      warningNote: "Port dwell 6h 14m at FRA · Customs hold",
-    },
-    {
-      status: "normal" as const,
-      shipmentId: "SHP-2026-0435",
-      route: "London → Johannesburg",
-      temp: "4.8°C",
-      riskPercent: "Risk 8%",
-    },
-    {
-      status: "feed-lost" as const,
-      shipmentId: "SHP-2026-0431",
-      route: "Tokyo → Sydney",
-      lastReading: "47m ago",
-    },
-  ])
+export function ActiveShipmentsPage({ initialShipments }: ActiveShipmentsPageProps) {
+  const [shipments, setShipments] = useState<any[]>(() => (initialShipments ? mapShipmentCards(initialShipments) : []))
 
   useEffect(() => {
+    if (initialShipments) {
+      setShipments(mapShipmentCards(initialShipments))
+      return
+    }
+
     let cancelled = false
     getActiveShipments()
       .then((rows) => {
-        if (cancelled || !rows.length) return
-        setShipments(
-          rows.map((row) => ({
-            status: row.status === "feed_lost" ? "feed-lost" : row.status,
-            shipmentId: row.shipmentId,
-            route: `${row.origin} → ${row.destination}`,
-            temp: row.currentTemp,
-            trend: row.trend ?? undefined,
-            timeRemaining: row.eta,
-            countdownTime: row.countdownTime ?? row.eta,
-            crisisMessage: row.crisisMessage ?? undefined,
-            warningNote: row.warningNote ?? undefined,
-            lastReading: row.lastReading ?? undefined,
-          })),
-        )
+        if (cancelled) return
+        setShipments(mapShipmentCards(rows))
       })
-      .catch(() => {})
+      .catch(() => setShipments([]))
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initialShipments])
 
   return (
     <div className="relative min-h-screen" style={{ background: "#080B0F" }}>
@@ -172,3 +149,4 @@ export function ActiveShipmentsPage() {
     </div>
   )
 }
+

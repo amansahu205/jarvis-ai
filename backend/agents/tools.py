@@ -8,7 +8,6 @@ from statistics import mean
 from typing import Any
 
 import httpx
-from anthropic import AsyncAnthropic
 from pinecone import Pinecone
 from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -342,13 +341,13 @@ class RoutePathfinderTool:
 
 
 class POParserTool:
-    """Multimodal purchase order parser using Anthropic."""
+    """Multimodal purchase order parser using Gemini."""
 
     def __init__(self) -> None:
-        self._client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY) if settings.ANTHROPIC_API_KEY else None
-        self._model = 'claude-3-5-sonnet-20241022'
+        self._api_key = settings.GEMINI_API_KEY
+        self._model = 'gemini-3.1-pro-preview'
 
-    def _build_media_block(self, *, filename: str, content_type: str | None, file_bytes: bytes) -> dict[str, Any]:
+    def _build_inline_data(self, *, filename: str, content_type: str | None, file_bytes: bytes) -> dict[str, Any]:
         detected_type = content_type or ''
         lowered = filename.lower()
         if not detected_type:
@@ -360,23 +359,11 @@ class POParserTool:
                 detected_type = 'application/pdf'
 
         encoded = base64.b64encode(file_bytes).decode('utf-8')
-        if detected_type.startswith('image/'):
-            return {
-                'type': 'image',
-                'source': {
-                    'type': 'base64',
-                    'media_type': detected_type,
-                    'data': encoded,
-                },
-            }
-
         return {
-            'type': 'document',
-            'source': {
-                'type': 'base64',
-                'media_type': 'application/pdf',
+            'inline_data': {
+                'mime_type': detected_type,
                 'data': encoded,
-            },
+            }
         }
 
     def _extract_json(self, text_output: str) -> dict[str, Any]:
@@ -388,9 +375,20 @@ class POParserTool:
         json_blob = match.group(0) if match else cleaned
         return json.loads(json_blob)
 
+    def _extract_text(self, payload: dict[str, Any]) -> str:
+        candidates = payload.get('candidates') or []
+        text_parts: list[str] = []
+        for candidate in candidates:
+            content = candidate.get('content') or {}
+            for part in content.get('parts') or []:
+                part_text = part.get('text')
+                if part_text:
+                    text_parts.append(str(part_text))
+        return ''.join(text_parts)
+
     async def parse_upload(self, *, filename: str, content_type: str | None, file_bytes: bytes) -> ParsedShipment:
-        if not self._client:
-            raise RuntimeError('ANTHROPIC_API_KEY is required for PO parsing')
+        if not self._api_key:
+            raise RuntimeError('GEMINI_API_KEY is required for PO parsing')
 
         prompt = (
             'Extract the purchase order into strict JSON with these fields only: '
@@ -401,29 +399,41 @@ class POParserTool:
             'and 0 for numeric fields.'
         )
 
-        media_block = self._build_media_block(filename=filename, content_type=content_type, file_bytes=file_bytes)
-        response = await self._client.messages.create(
-            model=self._model,
-            max_tokens=800,
-            temperature=0,
-            system='You are a multimodal purchase order parser for pharmaceutical logistics.',
-            messages=[
+        inline_data = self._build_inline_data(filename=filename, content_type=content_type, file_bytes=file_bytes)
+        payload = {
+            'contents': [
                 {
-                    'role': 'user',
-                    'content': [
-                        media_block,
-                        {
-                            'type': 'text',
-                            'text': prompt,
-                        },
-                    ],
+                    'parts': [
+                        {'text': prompt},
+                        inline_data,
+                    ]
                 }
             ],
-        )
+            'generationConfig': {
+                'temperature': 0,
+                'maxOutputTokens': 800,
+                'responseMimeType': 'application/json',
+            },
+            'systemInstruction': {
+                'parts': [
+                    {'text': 'You are a multimodal purchase order parser for pharmaceutical logistics.'}
+                ]
+            },
+        }
 
-        text_output = ''.join(block.text for block in response.content if getattr(block, 'type', None) == 'text')
-        payload = self._extract_json(text_output)
-        return ParsedShipment.model_validate(payload)
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent'
+        timeout = httpx.Timeout(30.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, params={'key': self._api_key}, json=payload)
+            response.raise_for_status()
+            response_payload = response.json()
+
+        text_output = self._extract_text(response_payload)
+        if not text_output:
+            raise RuntimeError('Gemini returned no text for PO parsing')
+
+        parsed = self._extract_json(text_output)
+        return ParsedShipment.model_validate(parsed)
 
 
 class RiskRankerTool:

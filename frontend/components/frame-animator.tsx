@@ -55,7 +55,7 @@ export function FrameAnimator({
 
       if (elapsed >= frameTime) {
         frameIndexRef.current = (frameIndexRef.current + 1) % frameCount
-        
+
         if (frameIndexRef.current === 0 && !loop) {
           setIsPlaying(false)
           return
@@ -82,22 +82,22 @@ export function FrameAnimator({
     if (!ctx) return
 
     const img = imagesRef.current[currentFrame]
-    
+
     const drawFrame = () => {
       // Get container dimensions
       const container = canvas.parentElement
       if (!container) return
-      
+
       const width = container.clientWidth || 1920
       const height = container.clientHeight || 1080
-      
+
       canvas.width = width
       canvas.height = height
-      
+
       // Draw image scaled to fit container
       ctx.drawImage(img, 0, 0, width, height)
     }
-    
+
     if (img.complete) {
       drawFrame()
     } else {
@@ -106,15 +106,15 @@ export function FrameAnimator({
   }, [currentFrame])
 
   return (
-    <div className={`relative w-full h-full bg-black ${className}`}>
+    <div className={`relative w-full h-full bg-black ${className}`} suppressHydrationWarning>
       <canvas
         ref={canvasRef}
         className="w-full h-full block"
         style={{ display: 'block', width: '100%', height: '100%' }}
       />
-      
+
       {/* Playback controls (optional) */}
-      <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 hover:opacity-100 transition-opacity">
+      <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 hover:opacity-100 transition-opacity" suppressHydrationWarning>
         <button
           onClick={() => setIsPlaying(!isPlaying)}
           className="px-3 py-1 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-medium transition-colors"

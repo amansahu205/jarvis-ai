@@ -10,6 +10,7 @@ import {
   fetchRouteGeometry,
   getLatestTelemetry,
   ApiError,
+  type TelemetryLatestResponse,
 } from '@/lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -46,18 +47,22 @@ interface ComplianceCard {
 
 const complianceCards: ComplianceCard[] = []
 
-export function ReguMapDashboard() {
-  const [origin, setOrigin] = useState({ code: 'BOM', label: 'BOM — Chhatrapati Shivaji, Mumbai' })
-  const [destination, setDestination] = useState({ code: 'JFK', label: 'JFK — John F. Kennedy, New York' })
+interface ReguMapDashboardProps {
+  initialTelemetry?: TelemetryLatestResponse
+}
+
+export function ReguMapDashboard({ initialTelemetry }: ReguMapDashboardProps) {
+  const [origin, setOrigin] = useState({ code: '', label: '' })
+  const [destination, setDestination] = useState({ code: '', label: '' })
   const [transitMode, setTransitMode] = useState<'air' | 'maritime'>('maritime')
   const [cargoType, setCargoType] = useState('vaccine')
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'complete'>('idle')
   const [activeJurisdiction, setActiveJurisdiction] = useState<string | null>(null)
   const [expandedCard, setExpandedCard] = useState<string | null>(null)
   const [cards, setCards] = useState<ComplianceCard[]>(complianceCards)
-  const [routeStats, setRouteStats] = useState(['~22.4h transit', '4 jurisdictions', 'MARITIME'])
-  const [riskCounts, setRiskCounts] = useState({ pass: 3, flag: 1, block: 0 })
-  const [routeLabel, setRouteLabel] = useState('BOM → JFK · Maritime · ~22.4h · Suez Canal route')
+  const [routeStats, setRouteStats] = useState<string[]>([])
+  const [riskCounts, setRiskCounts] = useState({ pass: 0, flag: 0, block: 0 })
+  const [routeLabel, setRouteLabel] = useState('')
   const [apiWaypoints, setApiWaypoints] = useState<[number, number][]>([])
   const [routeGeometry, setRouteGeometry] = useState<GeoJSON.Geometry | null>(null)
   const [isCrisis, setIsCrisis] = useState(false)
@@ -77,7 +82,16 @@ export function ReguMapDashboard() {
       }
     }
 
-    void refreshTelemetry()
+    if (initialTelemetry) {
+      const crisis =
+        initialTelemetry.temp_excursion ||
+        initialTelemetry.alert_flag ||
+        initialTelemetry.status === 'ALERT'
+      setIsCrisis(crisis)
+    } else {
+      void refreshTelemetry()
+    }
+
     const interval = setInterval(() => {
       void refreshTelemetry()
     }, 15000)
@@ -86,7 +100,7 @@ export function ReguMapDashboard() {
       cancelled = true
       clearInterval(interval)
     }
-  }, [])
+  }, [initialTelemetry])
 
   const handleSwap = () => {
     const temp = origin
@@ -273,7 +287,7 @@ export function ReguMapDashboard() {
             <div className="flex-1">
               <LocationSearch
                 mode={transitMode === 'maritime' ? 'maritime' : 'air'}
-                defaultValue={origin.label}
+                defaultValue={origin.label || undefined}
                 onSelect={(loc: LocationResult) =>
                   setOrigin({ code: loc.code, label: `${loc.code} — ${loc.label}` })
                 }
@@ -312,7 +326,7 @@ export function ReguMapDashboard() {
             <div className="flex-1">
               <LocationSearch
                 mode={transitMode === 'maritime' ? 'maritime' : 'air'}
-                defaultValue={destination.label}
+                defaultValue={destination.label || undefined}
                 onSelect={(loc: LocationResult) =>
                   setDestination({ code: loc.code, label: `${loc.code} — ${loc.label}` })
                 }
@@ -477,7 +491,7 @@ export function ReguMapDashboard() {
                 color: '#8B949E',
               }}
             >
-              {routeLabel}
+              {routeLabel || 'No analyzed route yet'}
             </div>
             <div
               className="text-xs px-3 py-1 rounded-lg font-mono text-[#58A6FF]"
@@ -678,3 +692,4 @@ export function ReguMapDashboard() {
     </div>
   )
 }
+

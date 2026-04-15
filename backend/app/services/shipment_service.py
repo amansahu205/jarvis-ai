@@ -318,22 +318,16 @@ async def load_shipment_rows(session: AsyncSession, *, limit: int = 25, active_o
             SELECT
                 s.id,
                 s.shipment_code,
-                s.sensor_id,
-                s.medication_name,
-                s.lot_number,
-                s.temp_min_c,
-                s.temp_max_c,
-                s.safe_humidity_min,
-                s.safe_humidity_max,
+                s.cargo_type,
+                s.safe_temp_min,
+                s.safe_temp_max,
                 s.origin_locode,
                 s.destination_locode,
-                s.transit_mode,
-                s.estimated_hours,
-                s.waypoints,
+                s.carrier_name,
                 s.status,
-                s.route_label,
+                s.departure_at,
+                s.eta_at,
                 s.created_at,
-                s.updated_at,
                 lt.reading_id,
                 lt.temp_c,
                 lt.humidity_pct,
@@ -341,13 +335,14 @@ async def load_shipment_rows(session: AsyncSession, *, limit: int = 25, active_o
                 lt.lat,
                 lt.lng,
                 lt.recorded_at,
-                lt.alert_type
+                lt.alert_type,
+                lt.sensor_id AS telemetry_sensor_id
             FROM public.shipments s
             LEFT JOIN latest_telemetry lt
                 ON CAST(lt.shipment_id AS text) = s.shipment_code
                AND lt.rn = 1
-            WHERE (:active_only = false OR lower(s.status) <> 'delivered')
-            ORDER BY s.updated_at DESC NULLS LAST, s.created_at DESC
+            WHERE (:active_only = false OR lower(s.status::text) <> 'delivered')
+            ORDER BY s.created_at DESC
             LIMIT :limit
             """
         ),
@@ -362,11 +357,18 @@ async def load_active_shipments(session: AsyncSession, *, limit: int = 25) -> li
     for row in rows:
         telemetry_status = row.get('telemetry_status')
         status = _status_from_telemetry(telemetry_status if telemetry_status else row.get('status'))
-        current_temp = float(row['temp_c']) if row.get('temp_c') is not None else float(row['temp_min_c'] or 0.0)
+        current_temp = float(row['temp_c']) if row.get('temp_c') is not None else float(row.get('safe_temp_min') or 0.0)
+        safe_temp_min = float(row.get('safe_temp_min') or current_temp)
+        safe_temp_max = float(row.get('safe_temp_max') or current_temp)
         humidity = float(row['humidity_pct']) if row.get('humidity_pct') is not None else None
         current_pos = [float(row['lat']), float(row['lng'])] if row.get('lat') is not None and row.get('lng') is not None else None
-        waypoints = [list(point) for point in (row.get('waypoints') or [])]
-        eta = _eta_string(float(row.get('estimated_hours') or 0.0))
+        waypoints = [current_pos] if current_pos is not None else []
+        eta_hours = 0.0
+        departure_at = row.get('departure_at')
+        eta_at = row.get('eta_at')
+        if departure_at and eta_at:
+            eta_hours = max(0.0, (eta_at - departure_at).total_seconds() / 3600)
+        eta = _eta_string(eta_hours)
         alert_type = row.get('alert_type')
         warning_note = None
         crisis_message = None
@@ -374,8 +376,10 @@ async def load_active_shipments(session: AsyncSession, *, limit: int = 25) -> li
         if telemetry_status and str(telemetry_status).lower() == 'critical':
             crisis_message = 'Crisis Active — Pending RP Approval'
             trend = None
-        elif humidity is not None and (humidity < float(row['safe_humidity_min']) or humidity > float(row['safe_humidity_max'])):
-            warning_note = 'Humidity outside safe range'
+        elif current_temp < safe_temp_min or current_temp > safe_temp_max:
+            warning_note = 'Temperature outside safe range'
+        elif humidity is not None and humidity < 35:
+            warning_note = 'Humidity below target range'
         elif alert_type:
             warning_note = str(alert_type)
 
@@ -383,6 +387,13 @@ async def load_active_shipments(session: AsyncSession, *, limit: int = 25) -> li
         last_reading = None
         if recorded_at:
             last_reading = f"{recorded_at:%H:%M UTC}"
+
+        transit_mode = infer_transit_mode(
+            str(row['origin_locode']),
+            str(row['destination_locode']),
+            None,
+            None,
+        )
 
         active.append(
             ActiveShipmentItem(
@@ -393,8 +404,8 @@ async def load_active_shipments(session: AsyncSession, *, limit: int = 25) -> li
                 status=status if status in {'critical', 'warning', 'normal', 'feed_lost'} else 'normal',
                 currentTemp=f"{current_temp:.1f}°C",
                 eta=eta,
-                transitMode=str(row['transit_mode']),
-                cargo=str(row['medication_name']),
+                transitMode=str(transit_mode),
+                cargo=str(row.get('cargo_type') or 'Medical cargo'),
                 humidity=(f"{humidity:.0f}%" if humidity is not None else None),
                 routeWaypoints=waypoints,
                 currentPos=current_pos,
@@ -414,11 +425,13 @@ async def load_latest_summary(session: AsyncSession, *, limit: int = 5) -> list[
     for row in rows:
         telemetry_status = row.get('telemetry_status')
         status = _status_from_telemetry(telemetry_status if telemetry_status else row.get('status'))
-        current_temp = float(row['temp_c']) if row.get('temp_c') is not None else float(row['temp_min_c'] or 0.0)
+        current_temp = float(row['temp_c']) if row.get('temp_c') is not None else float(row.get('safe_temp_min') or 0.0)
         humidity = float(row['humidity_pct']) if row.get('humidity_pct') is not None else None
         current_pos = {'lat': float(row['lat']), 'lng': float(row['lng'])} if row.get('lat') is not None and row.get('lng') is not None else None
-        route = row.get('route_label') or f"{row['origin_locode']} → {row['destination_locode']}"
-        eta = _eta_string(float(row.get('estimated_hours') or 0.0))
+        route = f"{row['origin_locode']} → {row['destination_locode']}"
+        eta = _eta_string(0.0)
+        if row.get('departure_at') and row.get('eta_at'):
+            eta = _eta_string(max(0.0, (row['eta_at'] - row['departure_at']).total_seconds() / 3600))
         summary.append(
             ShipmentSummaryItem(
                 shipment_id=str(row['shipment_code']),
@@ -428,9 +441,9 @@ async def load_latest_summary(session: AsyncSession, *, limit: int = 5) -> list[
                 eta=eta,
                 coords=current_pos,
                 humidity=(f"{humidity:.0f}%" if humidity is not None else None),
-                waypoints=[list(point) for point in (row.get('waypoints') or [])],
-                cargo=str(row['medication_name']),
-                transit_mode=str(row['transit_mode']),
+                waypoints=[current_pos] if current_pos is not None else [],
+                cargo=str(row.get('cargo_type') or 'Medical cargo'),
+                transit_mode=str(infer_transit_mode(str(row['origin_locode']), str(row['destination_locode']), None, None)),
             )
         )
     return summary

@@ -11,6 +11,16 @@ from app.api.v1.router import router
 from services.sentinel_monitor import SentinelAgent
 
 
+def _build_allowed_origins() -> list[str]:
+    configured = [origin.strip() for origin in settings.FRONTEND_URL.split(',') if origin.strip()]
+    dev_defaults = ['http://localhost:3000', 'http://127.0.0.1:3000']
+    ordered: list[str] = []
+    for origin in configured + dev_defaults:
+        if origin not in ordered:
+            ordered.append(origin)
+    return ordered
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
@@ -35,7 +45,7 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.FRONTEND_URL],
+        allow_origins=_build_allowed_origins(),
         allow_credentials=True,
         allow_methods=['*'],
         allow_headers=['*'],

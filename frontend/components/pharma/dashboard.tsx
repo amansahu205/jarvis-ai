@@ -33,7 +33,7 @@ import {
 } from "lucide-react"
 import { FuelPriceWidget } from "./fuel-price-widget"
 import { VerificationCard } from "./verification-card"
-import { createShipment, getActiveShipments, parsePurchaseOrder } from "@/lib/api"
+import { createShipment, getActiveShipments, parsePurchaseOrder, type ActiveShipmentItem } from "@/lib/api"
 import { LocationSearch } from "@/components/LocationSearch"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,6 +71,7 @@ interface ActiveShipment {
 
 interface DashboardProps {
   userRole?: "logistics_planner" | "responsible_person"
+  initialActiveShipments?: ActiveShipmentItem[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,12 +83,28 @@ interface DashboardProps {
 // DASHBOARD COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
+function mapActiveShipmentRows(rows: ActiveShipmentItem[]): ActiveShipment[] {
+  return rows.map((shipment) => ({
+    id: shipment.id,
+    shipmentId: shipment.shipmentId,
+    origin: shipment.origin,
+    destination: shipment.destination,
+    status: shipment.status.toUpperCase() as ActiveShipment["status"],
+    currentTemp: shipment.currentTemp,
+    eta: shipment.eta,
+    transitMode: shipment.transitMode,
+    cargo: shipment.cargo,
+  }))
+}
+
+export function Dashboard({ userRole = "logistics_planner", initialActiveShipments }: DashboardProps) {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [leftPanelTab, setLeftPanelTab] = useState<"import" | "manual">("import")
   const [dashboardState, setDashboardState] = useState<"idle" | "parsing" | "verifying" | "active">("idle")
   const [parsedShipment, setParsedShipment] = useState<any | null>(null)
-  const [activeShipments, setActiveShipments] = useState<ActiveShipment[]>([])
+  const [activeShipments, setActiveShipments] = useState<ActiveShipment[]>(() =>
+    initialActiveShipments ? mapActiveShipmentRows(initialActiveShipments) : [],
+  )
   const [routeAnalyzerData, setRouteAnalyzerData] = useState({
     origin: "",
     destination: "",
@@ -112,28 +129,22 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
   }
 
   useEffect(() => {
+    if (initialActiveShipments) {
+      setActiveShipments(mapActiveShipmentRows(initialActiveShipments))
+      return
+    }
+
     let cancelled = false
     getActiveShipments()
       .then((shipments) => {
         if (cancelled) return
-        const mapped = shipments.map((shipment) => ({
-          id: shipment.id,
-          shipmentId: shipment.shipmentId,
-          origin: shipment.origin,
-          destination: shipment.destination,
-          status: shipment.status.toUpperCase() as ActiveShipment["status"],
-          currentTemp: shipment.currentTemp,
-          eta: shipment.eta,
-          transitMode: shipment.transitMode,
-          cargo: shipment.cargo,
-        }))
-        setActiveShipments(mapped)
+        setActiveShipments(mapActiveShipmentRows(shipments))
       })
       .catch(() => setActiveShipments([]))
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initialActiveShipments])
 
   const handlePoParse = async (file: File) => {
     setDashboardState("parsing")
@@ -872,38 +883,15 @@ function ImportPOTab({ onParse, phase }: { onParse: (file: File) => Promise<void
         >
           Recent Imports
         </h4>
-        <div className="space-y-2">
-          {[
-            { name: "PO-2026-0441.pdf", time: "2 hours ago", status: "success" },
-            { name: "PO-2026-0438.csv", time: "Yesterday", status: "success" },
-            { name: "PO-2026-0435.xlsx", time: "3 days ago", status: "warning" },
-          ].map((item, idx) => (
-            <div
-              key={idx}
-              className="flex items-center justify-between p-3 rounded-lg"
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <FileText size={14} style={{ color: "#58A6FF" }} />
-                <span className="text-sm" style={{ color: "#E6EDF3" }}>
-                  {item.name}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs" style={{ color: "#8B949E" }}>
-                  {item.time}
-                </span>
-                {item.status === "success" ? (
-                  <CheckCircle2 size={14} style={{ color: "#1ECC8B" }} />
-                ) : (
-                  <AlertTriangle size={14} style={{ color: "#F0A500" }} />
-                )}
-              </div>
-            </div>
-          ))}
+        <div
+          className="p-3 rounded-lg text-sm"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.05)",
+            color: "#8B949E",
+          }}
+        >
+          No recent imports yet.
         </div>
       </div>
     </div>
@@ -1154,3 +1142,4 @@ function ManualEntryForm() {
 }
 
 export default Dashboard
+

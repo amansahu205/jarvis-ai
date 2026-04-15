@@ -46,7 +46,7 @@ interface DraftItem {
 interface ComplianceCard {
   flag: string
   name: string
-  type: 'ORIGIN' | 'TRANSIT' | 'INTERNATIONAL WATERS' | 'DESTINATION'
+  type: 'ORIGIN' | 'TRANSIT' | 'TRANSIT JURISDICTION' | 'INTERNATIONAL WATERS' | 'DESTINATION'
   regulation: string
   clause: string
   badge: 'PASS' | 'FLAG'
@@ -56,6 +56,7 @@ interface ComplianceCard {
 
 interface CrisisTicketPageProps {
   userRole?: 'logistics_planner' | 'responsible_person'
+  initialTicket?: CrisisTicketResponse
 }
 
 function mapCrisisOptionToUi(option: CrisisTicketResponse['evaluated_routes'][number]): RerouteOption {
@@ -161,9 +162,17 @@ const complianceCards: ComplianceCard[] = [
   },
 ]
 
-type EdgeState = 'normal' | 'no_route' | 'incomplete_drafts' | 'session_expired' | 'compliance_recheck' | 'dual_approval' | 'call_failed' | 'feed_lost'
+type EdgeState =
+  | 'normal'
+  | 'no_route'
+  | 'incomplete_drafts'
+  | 'session_expired'
+  | 'compliance_recheck'
+  | 'dual_approval'
+  | 'call_failed'
+  | 'feed_lost'
 
-export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTicketPageProps) {
+export function CrisisTicketPage({ userRole = 'responsible_person', initialTicket }: CrisisTicketPageProps) {
   const [selectedOptionId, setSelectedOptionId] = useState('opt-1')
   const [secondsLeft, setSecondsLeft] = useState(9 * 3600 + 42 * 60)
   const [expandedDraft, setExpandedDraft] = useState<string | null>(null)
@@ -175,7 +184,7 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
   const [showCascadePanel, setShowCascadePanel] = useState(false)
   const [isApproved, setIsApproved] = useState(false)
   const [approvedAt, setApprovedAt] = useState<string | undefined>()
-  const [edgeState, setEdgeState] = useState<'normal' | 'no_compliant_route' | 'incomplete_drafts' | 'feed_lost' | 'compliance_recheck' | 'call_failed' | 'session_expired'>('normal')
+  const [edgeState, setEdgeState] = useState<EdgeState>('normal')
   const [showDevSimulator, setShowDevSimulator] = useState(false)
   const [ticketData, setTicketData] = useState<CrisisTicketResponse | null>(null)
   const [ticketLoadError, setTicketLoadError] = useState<string | null>(null)
@@ -191,6 +200,16 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
   }, [])
 
   useEffect(() => {
+    if (initialTicket) {
+      setTicketData(initialTicket)
+      if (initialTicket.evaluated_routes && initialTicket.evaluated_routes.length > 0) {
+        const mapped = initialTicket.evaluated_routes.map(mapCrisisOptionToUi)
+        setLiveRerouteOptions(mapped)
+        setSelectedOptionId((prev) => (mapped.some((option) => option.id === prev) ? prev : mapped[0].id))
+      }
+      return
+    }
+
     let cancelled = false
 
     const loadTicket = async () => {
@@ -215,7 +234,7 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initialTicket])
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600)
@@ -313,7 +332,7 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
 
       {/* CRISIS HEADER BAND */}
       <div
-        className="sticky top-0 z-50 flex items-center justify-between px-6 crisis-border"
+        className="sticky top-16 z-40 flex items-center justify-between px-6 crisis-border"
         style={{
           height: '88px',
           background: 'rgba(8,11,15,0.95)',
@@ -446,7 +465,7 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
       </div>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex" style={{ height: 'calc(100vh - 152px)' }}>
+      <div className="flex" style={{ height: 'calc(100vh - 216px)' }}>
         {/* LEFT PANEL */}
         <motion.div
           className="scrollbar-thin overflow-y-auto"
@@ -1509,33 +1528,40 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
         </AnimatePresence>
       </div>
 
-      {/* Edge State Overlays */}
+            {/* Edge State Overlays */}
       {edgeState === 'no_route' && (
-        <NoCompliantRouteState onOverride={() => setEdgeState('normal')} />
+        <NoCompliantRouteState onManualOverride={() => setEdgeState('normal')} />
       )}
       {edgeState === 'incomplete_drafts' && (
-        <IncompleteDraftsWarning failedDrafts={['Hospital Email', 'ERP Update']} onDismiss={() => setEdgeState('normal')} />
+        <IncompleteDraftsWarning failedDrafts={['Hospital Email', 'ERP Update']} />
       )}
       {edgeState === 'session_expired' && (
-        <SessionExpiredOverlay onReauth={() => setEdgeState('normal')} />
+        <SessionExpiredOverlay
+          onReAuthenticate={() => setEdgeState('normal')}
+          ticketId={`TKT-${String(ticketData?.ticket_id || 441).padStart(4, '0')}`}
+        />
       )}
       {edgeState === 'compliance_recheck' && (
-        <ComplianceRecheckWarning onDismiss={() => setEdgeState('normal')} />
+        <ComplianceRecheckWarning
+          changedJurisdictions={['Egypt (Suez)', 'UAE Transit']}
+          onDismiss={() => setEdgeState('normal')}
+        />
       )}
       {edgeState === 'dual_approval' && (
-        <DualApprovalBlocker approverName="Dr. Chen" approvedAt="02:14 AM" onClose={() => setEdgeState('normal')} />
+        <DualApprovalBlocker
+          approvedBy="Dr. Chen"
+          approvedAt="02:14 AM"
+          onViewAuditLog={() => setEdgeState('normal')}
+          onReturnToDashboard={() => setEdgeState('normal')}
+        />
       )}
       {edgeState === 'call_failed' && (
         <div className="fixed top-[120px] right-6 z-40">
-          <ElevenLabsCallFailed onRetry={() => setEdgeState('normal')} />
+          <ElevenLabsCallFailed onRetryCall={() => setEdgeState('normal')} />
         </div>
       )}
       {edgeState === 'feed_lost' && (
-        <FeedLostCrisisBanner
-          lastReading={{ temp: '6.4°C', time: '47m ago', humidity: '62%' }}
-          onRetry={() => setEdgeState('normal')}
-          onManual={() => setEdgeState('normal')}
-        />
+        <FeedLostCrisisBanner shipmentId={ticketData?.shipment_id || 'SHP-2026-0441'} lastSignalTime="47m ago" />
       )}
 
       {/* Signature Modal */}
@@ -1543,17 +1569,17 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
         isOpen={isSignatureModalOpen}
         selectedOption={selectedOption ? {
           title: selectedOption.title,
-          stats: `${selectedOption.type.toUpperCase()} · ${selectedOption.duration} · ${selectedOption.cost}`,
+          type: selectedOption.type === 'maritime' ? 'maritime' : 'air',
+          duration: selectedOption.duration,
+          cost: selectedOption.cost,
           complianceStatus: selectedOption.complianceStatus === 'PASS' ? 'PASS' : 'CRISIS',
-        } : { title: '', stats: '', complianceStatus: 'PASS' }}
-        modalState={signatureModalState}
+        } : { title: '', type: 'air', duration: '', cost: '', complianceStatus: 'PASS' }}
         onApprove={handleSignatureApprove}
         onClose={() => {
           setIsSignatureModalOpen(false)
           setSignatureModalState('idle')
         }}
       />
-
       {/* Cascade Actions Panel */}
       <CascadeActionsPanel
         isOpen={showCascadePanel}
@@ -1567,3 +1593,11 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
     </div>
   )
 }
+
+
+
+
+
+
+
+

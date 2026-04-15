@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { getActiveShipments } from '@/lib/api'
+import { getActiveShipments, type ActiveShipmentItem } from '@/lib/api'
 import maplibregl from 'maplibre-gl'
 import { AlertTriangle, X, MapPin } from 'lucide-react'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -31,54 +31,68 @@ interface Shipment {
   cargo: string
 }
 
+interface LiveTrackerPageProps {
+  initialShipments?: ActiveShipmentItem[]
+}
+
+function mapLiveTrackerShipments(rows: ActiveShipmentItem[]): Shipment[] {
+  return rows.map((row) => ({
+    id: row.shipmentId,
+    status: row.status === 'feed_lost' ? 'feed_lost' : row.status,
+    originCity: row.origin,
+    originCoords: row.routeWaypoints[0] ?? [0, 0],
+    destCity: row.destination,
+    destCoords: row.routeWaypoints[row.routeWaypoints.length - 1] ?? [0, 0],
+    currentPos: row.currentPos,
+    routeWaypoints: row.routeWaypoints.length ? row.routeWaypoints : [[0, 0], [0, 0]],
+    completedWaypointIndex: 0,
+    temperature: Number.parseFloat(row.currentTemp),
+    humidity: row.humidity ?? 'N/A',
+    shock: 'N/A',
+    speed: 'Live',
+    eta: row.eta,
+    etaDelayed: row.status === 'critical' || row.status === 'warning',
+    cargo: row.cargo,
+  }))
+}
+
 interface InfoPopup {
   shipmentId: string
   position: [number, number]
 }
 
-export function LiveTrackerPage() {
+export function LiveTrackerPage({ initialShipments }: LiveTrackerPageProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(null)
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null)
-  const [shipments, setShipments] = useState<Shipment[]>([])
+  const [shipments, setShipments] = useState<Shipment[]>(() =>
+    initialShipments ? mapLiveTrackerShipments(initialShipments) : [],
+  )
   const [isLoading, setIsLoading] = useState(true)
   const mapReadyRef = useRef(false)
   const shipmentsRef = useRef<Shipment[]>([])
   shipmentsRef.current = shipments
 
   useEffect(() => {
+    if (initialShipments) {
+      setShipments(mapLiveTrackerShipments(initialShipments))
+      setIsLoading(false)
+      return
+    }
+
     let cancelled = false
     getActiveShipments()
       .then((rows) => {
-        if (cancelled || !rows.length) return
-        setShipments(
-          rows.map((row) => ({
-            id: row.shipmentId,
-            status: row.status === 'feed_lost' ? 'feed_lost' : row.status,
-            originCity: row.origin,
-            originCoords: row.routeWaypoints[0] ?? [0, 0],
-            destCity: row.destination,
-            destCoords: row.routeWaypoints[row.routeWaypoints.length - 1] ?? [0, 0],
-            currentPos: row.currentPos,
-            routeWaypoints: row.routeWaypoints.length ? row.routeWaypoints : [[0, 0], [0, 0]],
-            completedWaypointIndex: 0,
-            temperature: Number.parseFloat(row.currentTemp),
-            humidity: row.humidity ?? 'N/A',
-            shock: 'N/A',
-            speed: 'Live',
-            eta: row.eta,
-            etaDelayed: row.status === 'critical' || row.status === 'warning',
-            cargo: row.cargo,
-          })),
-        )
+        if (cancelled) return
+        setShipments(mapLiveTrackerShipments(rows))
       })
       .catch(() => setShipments([]))
       .finally(() => setIsLoading(false))
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initialShipments])
 
   const syncRoutes = () => {
     if (!map.current || !mapReadyRef.current || !map.current.isStyleLoaded()) return
@@ -529,3 +543,4 @@ export function LiveTrackerPage() {
 }
 
 export default LiveTrackerPage
+
