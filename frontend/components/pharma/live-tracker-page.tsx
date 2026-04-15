@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getActiveShipments } from '@/lib/api'
 import maplibregl from 'maplibre-gl'
 import { AlertTriangle, X, MapPin } from 'lucide-react'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -30,91 +31,6 @@ interface Shipment {
   cargo: string
 }
 
-const shipments: Shipment[] = [
-  {
-    id: 'SHP-2026-0441',
-    status: 'critical',
-    originCity: 'Mumbai, India',
-    originCoords: [72.8777, 19.076],
-    destCity: 'New York, USA',
-    destCoords: [-74.006, 40.7128],
-    currentPos: [32.35, 30.0],
-    routeWaypoints: [
-      [72.8, 19.0],
-      [58.5, 20.0],
-      [43.5, 12.8],
-      [32.35, 30.0],
-      [32.35, 31.2],
-      [15.0, 36.0],
-      [-5.0, 36.5],
-      [-40.0, 40.0],
-      [-74.0, 40.7],
-    ],
-    completedWaypointIndex: 3,
-    temperature: 7.4,
-    humidity: '62%',
-    shock: '0.3G',
-    speed: '12.4 kn',
-    eta: '14h 22m',
-    etaDelayed: true,
-    cargo: 'MMR Vaccines',
-  },
-  {
-    id: 'SHP-2026-0438',
-    status: 'warning',
-    originCity: 'Frankfurt, Germany',
-    originCoords: [8.68, 50.1],
-    destCity: 'Singapore',
-    destCoords: [103.8, 1.35],
-    currentPos: [50.1, 8.68],
-    routeWaypoints: [[8.68, 50.1], [25.0, 40.0], [32.0, 28.0], [45.0, 15.0], [63.0, 25.0], [80.0, 15.0], [103.8, 1.35]],
-    completedWaypointIndex: 0,
-    temperature: 4.2,
-    humidity: '58%',
-    shock: '0.1G',
-    speed: 'Held',
-    eta: '6h 14m',
-    etaDelayed: true,
-    cargo: 'Specialty Drugs',
-  },
-  {
-    id: 'SHP-2026-0435',
-    status: 'normal',
-    originCity: 'London, UK',
-    originCoords: [-0.1276, 51.5074],
-    destCity: 'Johannesburg, SA',
-    destCoords: [28.05, -26.2],
-    currentPos: [8.0, 22.0],
-    routeWaypoints: [[-0.1276, 51.5], [-5.0, 40.0], [-10.0, 30.0], [-8.0, 20.0], [8.0, 22.0], [10.0, 10.0], [15.0, -5.0], [28.05, -26.2]],
-    completedWaypointIndex: 4,
-    temperature: 4.8,
-    humidity: '65%',
-    shock: '0.2G',
-    speed: '11.8 kn',
-    eta: '18h 30m',
-    etaDelayed: false,
-    cargo: 'Oncology Biologics',
-  },
-  {
-    id: 'SHP-2026-0431',
-    status: 'feed_lost',
-    originCity: 'Chicago, USA',
-    originCoords: [-87.9, 41.97],
-    destCity: 'Tokyo, Japan',
-    destCoords: [139.69, 35.68],
-    currentPos: [-87.9, 41.97],
-    routeWaypoints: [[-87.9, 41.97], [-122.0, 37.0], [-150.0, 45.0], [170.0, 50.0], [150.0, 45.0], [139.69, 35.68]],
-    completedWaypointIndex: 0,
-    temperature: 0,
-    humidity: 'N/A',
-    shock: 'N/A',
-    speed: 'Unknown',
-    eta: 'Unknown',
-    etaDelayed: true,
-    cargo: 'mRNA Vaccines',
-  },
-]
-
 interface InfoPopup {
   shipmentId: string
   position: [number, number]
@@ -125,8 +41,113 @@ export function LiveTrackerPage() {
   const map = useRef<maplibregl.Map | null>(null)
   const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(null)
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null)
+  const [shipments, setShipments] = useState<Shipment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const mapReadyRef = useRef(false)
+  const shipmentsRef = useRef<Shipment[]>([])
+  shipmentsRef.current = shipments
 
-  // Initialize map
+  useEffect(() => {
+    let cancelled = false
+    getActiveShipments()
+      .then((rows) => {
+        if (cancelled || !rows.length) return
+        setShipments(
+          rows.map((row) => ({
+            id: row.shipmentId,
+            status: row.status === 'feed_lost' ? 'feed_lost' : row.status,
+            originCity: row.origin,
+            originCoords: row.routeWaypoints[0] ?? [0, 0],
+            destCity: row.destination,
+            destCoords: row.routeWaypoints[row.routeWaypoints.length - 1] ?? [0, 0],
+            currentPos: row.currentPos,
+            routeWaypoints: row.routeWaypoints.length ? row.routeWaypoints : [[0, 0], [0, 0]],
+            completedWaypointIndex: 0,
+            temperature: Number.parseFloat(row.currentTemp),
+            humidity: row.humidity ?? 'N/A',
+            shock: 'N/A',
+            speed: 'Live',
+            eta: row.eta,
+            etaDelayed: row.status === 'critical' || row.status === 'warning',
+            cargo: row.cargo,
+          })),
+        )
+      })
+      .catch(() => setShipments([]))
+      .finally(() => setIsLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const syncRoutes = () => {
+    if (!map.current || !mapReadyRef.current || !map.current.isStyleLoaded()) return
+
+    const existingLayers = map.current.getStyle().layers ?? []
+    existingLayers
+      .filter((layer) => layer.id.startsWith('route-completed-') || layer.id.startsWith('route-remaining-'))
+      .forEach((layer) => {
+        if (map.current?.getLayer(layer.id)) {
+          map.current.removeLayer(layer.id)
+        }
+      })
+
+    Object.keys(map.current.getStyle().sources ?? {})
+      .filter((sourceId) => sourceId.startsWith('route-'))
+      .forEach((sourceId) => {
+        if (map.current?.getSource(sourceId)) {
+          map.current.removeSource(sourceId)
+        }
+      })
+
+    if (shipmentsRef.current.length === 0) return
+
+    shipmentsRef.current.forEach((shipment) => {
+      map.current!.addSource(`route-${shipment.id}`, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: shipment.routeWaypoints,
+          },
+          properties: {},
+        },
+      })
+
+      map.current!.addLayer({
+        id: `route-completed-${shipment.id}`,
+        type: 'line',
+        source: `route-${shipment.id}`,
+        paint: {
+          'line-color': '#1ECC8B',
+          'line-width': 2.5,
+          'line-opacity': 0.8,
+        },
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+      })
+
+      map.current!.addLayer({
+        id: `route-remaining-${shipment.id}`,
+        type: 'line',
+        source: `route-${shipment.id}`,
+        paint: {
+          'line-color': '#58A6FF',
+          'line-width': 1.5,
+          'line-opacity': 0.4,
+          'line-dasharray': [3, 3],
+        },
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+      })
+    })
+  }
+
   useEffect(() => {
     if (!mapContainer.current) return
 
@@ -159,55 +180,8 @@ export function LiveTrackerPage() {
     map.current.on('load', () => {
       if (!map.current) return
 
-      shipments.forEach((shipment) => {
-        // Add route source
-        map.current!.addSource(`route-${shipment.id}`, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: shipment.routeWaypoints,
-            },
-            properties: {},
-          },
-        })
-
-        // Add completed route layer
-        map.current!.addLayer({
-          id: `route-completed-${shipment.id}`,
-          type: 'line',
-          source: `route-${shipment.id}`,
-          paint: {
-            'line-color': '#1ECC8B',
-            'line-width': 2.5,
-            'line-opacity': 0.8,
-          },
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round',
-          },
-        })
-
-        // Add remaining route layer
-        map.current!.addLayer({
-          id: `route-remaining-${shipment.id}`,
-          type: 'line',
-          source: `route-${shipment.id}`,
-          paint: {
-            'line-color': '#58A6FF',
-            'line-width': 1.5,
-            'line-opacity': 0.4,
-            'line-dasharray': [3, 3],
-          },
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round',
-          },
-        })
-      })
-
-      // Add custom marker elements (will use HTML overlays)
+      mapReadyRef.current = true
+      syncRoutes()
     })
 
     return () => {
@@ -216,6 +190,10 @@ export function LiveTrackerPage() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    syncRoutes()
+  }, [shipments])
 
   const handleShipmentSelect = (shipmentId: string) => {
     setSelectedShipmentId(shipmentId)
@@ -279,7 +257,7 @@ export function LiveTrackerPage() {
                 Live Tracker
               </div>
               <div className="text-xs mt-1" style={{ color: '#8B949E' }}>
-                4 shipments monitored
+                {isLoading ? 'Syncing telemetry...' : `${shipments.length} shipments monitored`}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -293,7 +271,20 @@ export function LiveTrackerPage() {
 
         {/* Shipment List */}
         <div className="flex-1 overflow-y-auto">
-          {shipments.map((shipment) => {
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-sm" style={{ color: '#8B949E' }}>
+              Syncing telemetry...
+            </div>
+          ) : shipments.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <div className="text-sm font-medium" style={{ color: '#E6EDF3' }}>
+                No telemetry detected. Check sensor connectivity for tag ONASSET-TAG-9948.
+              </div>
+              <div className="mt-2 text-xs" style={{ color: '#8B949E' }}>
+                Live route markers will appear once public.telemetry_readings is hydrated.
+              </div>
+            </div>
+          ) : shipments.map((shipment) => {
             const config = statusConfig[shipment.status]
             const isSelected = selectedShipmentId === shipment.id
             return (
@@ -419,7 +410,7 @@ export function LiveTrackerPage() {
 
       {/* Info Popup */}
       <AnimatePresence>
-        {selectedShipment && (
+        {!isLoading && selectedShipment && (
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}

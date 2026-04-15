@@ -53,6 +53,7 @@ class TelemetryReading(SQLModel, table=True):
     status: str = Field(default="NORMAL")        # NORMAL | WARNING | ALERT | FEED_LOST
     compliance_status: str = Field(default="compliant")
     alert_flag: bool = Field(default=False)
+    agent_notified: bool = Field(default=False)
     alert_type: Optional[str] = None             # TEMP_HIGH | TEMP_LOW | HUMIDITY | SHOCK | DWELL | FEED_LOST
 
     # OnAsset Sensor Health
@@ -64,3 +65,4 @@ class TelemetryReading(SQLModel, table=True):
     is_simulated: bool = Field(default=True)
     source: str = Field(default="generator")
     notes: Optional[str] = None
+

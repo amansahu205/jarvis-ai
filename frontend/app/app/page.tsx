@@ -16,11 +16,11 @@ import { FrameAnimator } from '@/components/frame-animator'
 type View = 'audit' | 'shipments' | 'tracker' | 'regumap' | 'crisis' | 'dashboard'
 
 export default function AppPage() {
-  const [userRole, setUserRole] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<'logistics_planner' | 'responsible_person' | null>(null)
   const [currentView, setCurrentView] = useState<View>('dashboard')
 
   const handleLogin = (role: string) => {
-    setUserRole(role)
+    setUserRole(role as 'logistics_planner' | 'responsible_person')
   }
 
   // Show login if not authenticated

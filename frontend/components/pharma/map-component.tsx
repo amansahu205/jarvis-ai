@@ -24,12 +24,6 @@ interface MarkerEntry {
   root: Root
 }
 
-// Default BOM→JFK route shown before live API data arrives.
-const DEFAULT_COORDS: [number, number][] = [
-  [72.8, 19.1], [57.0, 16.0], [43.0, 12.5],
-  [32.5, 29.9], [31.2, 31.4], [-5.0, 36.0], [-74.0, 40.7],
-]
-
 function AnimatedMarker({
   color,
   pulseSeconds,
@@ -84,31 +78,33 @@ export default function MapComponent({
   const deck = useRef<Deck | null>(null)
   const markersRef = useRef<MarkerEntry[]>([])
   const dashTickRef = useRef<number | null>(null)
+  const mapLoadedRef = useRef(false)
 
   // Convert [lat, lon] -> [lon, lat] for map/geojson rendering.
   const toCoords = (wps: [number, number][]): [number, number][] =>
     wps.map(([lat, lon]) => [lon, lat])
 
   const activeCoords = useMemo(
-    () => (waypoints.length >= 2 ? toCoords(waypoints) : DEFAULT_COORDS),
+    () => (waypoints.length >= 2 ? toCoords(waypoints) : []),
     [waypoints],
   )
 
-  const fallbackGeometry = useMemo<GeoJSON.Geometry>(() => ({
+  const effectiveGeometry = routeGeometry ?? (activeCoords.length >= 2 ? {
     type: 'LineString',
     coordinates: activeCoords,
-  }), [activeCoords])
+  } as GeoJSON.Geometry : null)
 
-  const effectiveGeometry = routeGeometry ?? fallbackGeometry
-
-  const routeFeatureCollection = useMemo<GeoJSON.FeatureCollection>(() => ({
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: { mode: transitMode },
-      geometry: effectiveGeometry,
-    }],
-  }), [effectiveGeometry, transitMode])
+  const routeFeatureCollection = useMemo<GeoJSON.FeatureCollection | null>(() => {
+    if (!effectiveGeometry) return null
+    return {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: { mode: transitMode },
+        geometry: effectiveGeometry,
+      }],
+    }
+  }, [effectiveGeometry, transitMode])
 
   // Initialise map and Deck once.
   useEffect(() => {
@@ -140,24 +136,26 @@ export default function MapComponent({
         layers: [],
       })
 
-      map.current.addSource('route-flow', {
-        type: 'geojson',
-        data: routeFeatureCollection,
-      })
-      map.current.addLayer({
-        id: 'route-flow-line',
-        type: 'line',
-        source: 'route-flow',
-        paint: {
-          'line-color': isCrisis ? '#FF4444' : (transitMode === 'maritime' ? '#1ECC8B' : '#58A6FF'),
-          'line-width': transitMode === 'maritime' ? 4 : 2,
-          'line-opacity': 0.95,
-          'line-dasharray': transitMode === 'maritime' ? [0] : [0, 2, 2],
-        },
-      })
+      if (routeFeatureCollection) {
+        map.current.addSource('route-flow', {
+          type: 'geojson',
+          data: routeFeatureCollection,
+        })
+        map.current.addLayer({
+          id: 'route-flow-line',
+          type: 'line',
+          source: 'route-flow',
+          paint: {
+            'line-color': isCrisis ? '#FF4444' : (transitMode === 'maritime' ? '#1ECC8B' : '#58A6FF'),
+            'line-width': transitMode === 'maritime' ? 4 : 2,
+            'line-opacity': 0.95,
+            'line-dasharray': transitMode === 'maritime' ? [0] : [0, 2, 2],
+          },
+        })
 
-      _syncDeckLayers(routeFeatureCollection)
-      _placeMarkers(activeCoords)
+        _syncDeckLayers(routeFeatureCollection)
+        _placeMarkers(activeCoords)
+      }
 
       // Only animate dashing for air routes; maritime routes are solid
       if (transitMode === 'air') {
@@ -196,22 +194,58 @@ export default function MapComponent({
 
   // Update route/markers when geometry or crisis state changes.
   useEffect(() => {
-    if (!map.current) return
-    const src = map.current.getSource('route-flow') as maplibregl.GeoJSONSource | undefined
-    if (src) {
-      src.setData(routeFeatureCollection)
+    if (!map.current || !mapLoadedRef.current) return
+
+    const source = map.current.getSource('route-flow') as maplibregl.GeoJSONSource | undefined
+    if (!routeFeatureCollection) {
+      if (map.current.getLayer('route-flow-line')) {
+        map.current.removeLayer('route-flow-line')
+      }
+      if (source) {
+        map.current.removeSource('route-flow')
+      }
+      deck.current?.setProps({ layers: [] })
+      markersRef.current.forEach(({ marker, root }) => {
+        marker.remove()
+        root.unmount()
+      })
+      markersRef.current = []
+      return
+    }
+
+    if (!source) {
+      map.current.addSource('route-flow', {
+        type: 'geojson',
+        data: routeFeatureCollection,
+      })
+      if (!map.current.getLayer('route-flow-line')) {
+        map.current.addLayer({
+          id: 'route-flow-line',
+          type: 'line',
+          source: 'route-flow',
+          paint: {
+            'line-color': isCrisis ? '#FF4444' : (transitMode === 'maritime' ? '#1ECC8B' : '#58A6FF'),
+            'line-width': transitMode === 'maritime' ? 4 : 2,
+            'line-opacity': 0.95,
+            'line-dasharray': transitMode === 'maritime' ? [0] : [0, 2, 2],
+          },
+        })
+      }
+    } else {
+      source.setData(routeFeatureCollection)
       if (map.current.getLayer('route-flow-line')) {
         map.current.setPaintProperty('route-flow-line', 'line-color', isCrisis ? '#FF4444' : (transitMode === 'maritime' ? '#1ECC8B' : '#58A6FF'))
         map.current.setPaintProperty('route-flow-line', 'line-width', transitMode === 'maritime' ? 4 : 2)
         map.current.setPaintProperty('route-flow-line', 'line-dasharray', transitMode === 'maritime' ? [0] : [0, 2, 2])
       }
-      _syncDeckLayers(routeFeatureCollection)
-      _placeMarkers(activeCoords)
     }
+
+    _syncDeckLayers(routeFeatureCollection)
+    _placeMarkers(activeCoords)
   }, [routeFeatureCollection, activeCoords, isCrisis, transitMode])
 
   function _syncDeckLayers(data: GeoJSON.FeatureCollection) {
-    if (!deck.current) return
+    if (!deck.current || !data) return
 
     // Use PathLayer for maritime routes with glow effect, GeoJsonLayer for air routes
     if (transitMode === 'maritime') {

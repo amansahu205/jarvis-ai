@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic'
 import { useEffect, useState, useRef } from 'react'
 import { LocationSearch, type LocationResult } from '@/components/LocationSearch'
 import {
-  analyzeRoute,
+  planStrategistRoute,
   spatialCheck,
   complianceCheck,
   fetchRouteGeometry,
@@ -44,53 +44,7 @@ interface ComplianceCard {
   expanded?: boolean
 }
 
-const complianceCards: ComplianceCard[] = [
-  {
-    id: 'india',
-    jurisdiction: 'India — Origin Country',
-    label: 'ORIGIN',
-    emoji: '🇮🇳',
-    regulation: 'CDSCO Schedule M · WHO-GDP Annex 9',
-    clause:
-      'Temperature-sensitive pharmaceutical products must maintain cold chain documentation from point of manufacture. Export clearance requires Form 40 and temperature monitoring certificates.',
-    citation: 'View: CDSCO Schedule M (2023) ↗',
-    badge: 'PASS',
-  },
-  {
-    id: 'arabian-sea',
-    jurisdiction: 'Arabian Sea — International Waters',
-    label: 'INTERNATIONAL WATERS',
-    emoji: '🌊',
-    regulation: 'IMO MARPOL Annex II · WHO Cold Chain Baseline',
-    clause:
-      'Pharmaceutical cargo in international waters falls under flag state regulations and WHO Good Distribution Practice. No specific port authority approvals required during transit. WHO TRS 961 temperature monitoring applies.',
-    citation: 'View: WHO TRS 961 Annex 9 ↗',
-    badge: 'PASS',
-  },
-  {
-    id: 'egypt',
-    jurisdiction: 'Egypt — Suez Canal Transit',
-    label: 'TRANSIT JURISDICTION',
-    emoji: '🇪🇬',
-    regulation: 'Egyptian Drug Authority Resolution 442 · MOHP Cold Chain Directive',
-    clause:
-      'Pharmaceutical transit through Egyptian territorial waters requires pre-notification to Egyptian Drug Authority (EDA) minimum 72 hours prior to vessel entry. Cold chain documentation must include WHO-certified temperature logs. Emergency staging permitted at Port Said Maersk facility under EDA Resolution 442-2023 Article 9.',
-    citation: 'View: EDA Resolution 442-2023 ↗',
-    badge: 'FLAG',
-    flagDetail: '⚠ 72-hour pre-notification required · EDA Article 9',
-  },
-  {
-    id: 'usa',
-    jurisdiction: 'United States — Destination',
-    label: 'DESTINATION COUNTRY',
-    emoji: '🇺🇸',
-    regulation: 'FDA 21 CFR Part 211 · USP <1079> Cold Chain',
-    clause:
-      'Import of biological products and vaccines requires FDA Form 2877 (Notice of Importation). Temperature excursion reports must be filed within 24 hours of detection. USP Chapter 1079 compliance required for all biological cold-chain shipments.',
-    citation: 'View: FDA 21 CFR Part 211 ↗',
-    badge: 'PASS',
-  },
-]
+const complianceCards: ComplianceCard[] = []
 
 export function ReguMapDashboard() {
   const [origin, setOrigin] = useState({ code: 'BOM', label: 'BOM — Chhatrapati Shivaji, Mumbai' })
@@ -147,44 +101,88 @@ export function ReguMapDashboard() {
       const originCode = origin.code
       const destCode = destination.code
 
-      const route = await analyzeRoute(originCode, destCode, transitMode, cargoType)
-      setApiWaypoints(route.waypoints)
+      const plan = await planStrategistRoute(originCode, destCode, cargoType)
+      const rankedRoutes = [...plan.evaluated_routes].sort(
+        (a, b) => (a.risk_score ?? 100) - (b.risk_score ?? 100),
+      )
+      if (rankedRoutes.length === 0) {
+        throw new Error('Strategist returned no candidate routes')
+      }
 
-      const geometry = await fetchRouteGeometry({
-        origin: originCode,
-        destination: destCode,
-        transit_mode: transitMode,
-        waypoints: route.waypoints,
-      })
-      setRouteGeometry(geometry.geometry)
+      const primary =
+        rankedRoutes.find((r) => r.route_id === plan.recommended_route_id) ?? rankedRoutes[0]
 
-      const spatial = await spatialCheck(originCode, destCode, transitMode, route.waypoints)
-      const compliance = await complianceCheck(spatial.jurisdictions)
+      const primaryWaypoints = (primary.waypoints ?? []) as [number, number][]
+      setApiWaypoints(primaryWaypoints)
 
-      const newCards: ComplianceCard[] = compliance.jurisdictions.map((jx) => ({
-        id: jx.id,
-        jurisdiction: `${jx.name}`,
-        label: jx.type as ComplianceCard['label'],
-        emoji: jx.flag,
-        regulation: jx.regulation,
-        clause: jx.clause,
-        citation: jx.citation_url ? `View: ${jx.citation} ↗` : jx.citation,
-        badge: jx.badge,
-        flagDetail: jx.warning ?? undefined,
-      }))
-      setCards(newCards)
-      if (newCards[0]) setActiveJurisdiction(newCards[0].id)
+      if (primaryWaypoints.length >= 2) {
+        const geometry = await fetchRouteGeometry({
+          origin: originCode,
+          destination: destCode,
+          transit_mode: primary.transit_mode === 'multimodal' ? transitMode : primary.transit_mode,
+          waypoints: primaryWaypoints,
+        })
+        setRouteGeometry(geometry.geometry)
 
-      const pass = compliance.jurisdictions.filter((j) => j.badge === 'PASS').length
-      const flag = compliance.jurisdictions.filter((j) => j.badge === 'FLAG').length
-      const block = compliance.jurisdictions.filter((j) => j.badge === 'BLOCK').length
-      setRiskCounts({ pass, flag, block })
+        const spatial = await spatialCheck(
+          originCode,
+          destCode,
+          primary.transit_mode === 'multimodal' ? transitMode : primary.transit_mode,
+          primaryWaypoints,
+        )
+        const compliance = await complianceCheck(spatial.jurisdictions)
+
+        const newCards: ComplianceCard[] = compliance.jurisdictions.map((jx) => ({
+          id: jx.id,
+          jurisdiction: `${jx.name}`,
+          label: jx.type as ComplianceCard['label'],
+          emoji: jx.flag,
+          regulation: jx.regulation,
+          clause: jx.clause,
+          citation: jx.citation_url ? `View: ${jx.citation} ↗` : jx.citation,
+          badge: jx.badge,
+          flagDetail: jx.warning ?? undefined,
+        }))
+        setCards(newCards)
+        if (newCards[0]) setActiveJurisdiction(newCards[0].id)
+
+        const pass = compliance.jurisdictions.filter((j) => j.badge === 'PASS').length
+        const flag = compliance.jurisdictions.filter((j) => j.badge === 'FLAG').length
+        const block = compliance.jurisdictions.filter((j) => j.badge === 'BLOCK').length
+        setRiskCounts({ pass, flag, block })
+      } else {
+        setRouteGeometry(null)
+        const summarizedBadge: ComplianceCard['badge'] = (plan.risk_score ?? 100) >= 65 ? 'FLAG' : 'PASS'
+        const summaryCards: ComplianceCard[] = [
+          {
+            id: 'strategist-summary',
+            jurisdiction: 'Strategist Compliance Summary',
+            label: 'TRANSIT',
+            emoji: '📘',
+            regulation: 'GDP/WHO Clause Bundle',
+            clause: plan.compliance_summary,
+            citation: 'Generated from Strategist compliance retrieval',
+            badge: summarizedBadge,
+            flagDetail: summarizedBadge === 'FLAG' ? 'Higher risk route requires RP attention.' : undefined,
+          },
+        ]
+        setCards(summaryCards)
+        setActiveJurisdiction('strategist-summary')
+
+        const pass = rankedRoutes.filter((r) => (r.risk_score ?? 100) < 40).length
+        const flag = rankedRoutes.filter((r) => (r.risk_score ?? 100) >= 40 && (r.risk_score ?? 100) < 70).length
+        const block = rankedRoutes.filter((r) => (r.risk_score ?? 100) >= 70).length
+        setRiskCounts({ pass, flag, block })
+      }
+
       setRouteStats([
-        `~${route.transit_time_hours}h transit`,
-        `${compliance.jurisdictions.length} jurisdictions`,
-        route.mode.toUpperCase(),
+        `~${(primary.estimated_hours ?? 0).toFixed(1)}h transit`,
+        `${rankedRoutes.length} options ranked`,
+        `RISK ${plan.risk_score.toFixed(1)}`,
       ])
-      setRouteLabel(`${originCode} → ${destCode} · ${route.mode} · ~${route.transit_time_hours}h`)
+      setRouteLabel(
+        `${originCode} → ${destCode} · Primary ${primary.route_id} · ${primary.transit_mode} · risk ${plan.risk_score.toFixed(1)}`,
+      )
 
       setAnalysisState('complete')
     } catch (err) {
@@ -495,7 +493,11 @@ export function ReguMapDashboard() {
 
           {/* Compliance Cards */}
           <div className="p-3">
-            {cards.map((card, idx) => (
+            {cards.length === 0 ? (
+              <div className="p-4 rounded-lg text-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#8B949E' }}>
+                Run route analysis to generate RAG-backed compliance citations.
+              </div>
+            ) : cards.map((card, idx) => (
               <motion.div
                 key={card.id}
                 initial={{ y: 12, opacity: 0 }}

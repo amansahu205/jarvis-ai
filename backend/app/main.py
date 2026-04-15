@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -6,12 +8,22 @@ from app.config import settings
 from app.database import create_tables
 from app.models import *
 from app.api.v1.router import router
+from services.sentinel_monitor import SentinelAgent
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
-    yield
+    monitor_task = asyncio.create_task(SentinelAgent().run_forever())
+    app.state.sentinel_monitor_task = monitor_task
+    try:
+        yield
+    finally:
+        monitor_task.cancel()
+        try:
+            await monitor_task
+        except asyncio.CancelledError:
+            pass
 
 
 def create_app() -> FastAPI:
@@ -41,3 +53,5 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+

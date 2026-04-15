@@ -18,6 +18,7 @@ import {
   ElevenLabsCallFailed,
   FeedLostCrisisBanner,
 } from './crisis-edge-states'
+import { ApiError, approveCrisisTicket, getLatestCrisisTicket, type CrisisTicketResponse } from '@/lib/api'
 
 const MapComponent = dynamic(() => import('./map-component'), {
   ssr: false,
@@ -27,7 +28,7 @@ const MapComponent = dynamic(() => import('./map-component'), {
 interface RerouteOption {
   id: string
   title: string
-  type: 'air' | 'maritime'
+  type: 'air' | 'maritime' | 'multimodal'
   duration: string
   cost: string
   complianceStatus: 'PASS' | 'FLAG' | 'CRISIS'
@@ -55,6 +56,25 @@ interface ComplianceCard {
 
 interface CrisisTicketPageProps {
   userRole?: 'logistics_planner' | 'responsible_person'
+}
+
+function mapCrisisOptionToUi(option: CrisisTicketResponse['evaluated_routes'][number]): RerouteOption {
+  const status = (option.compliance_status || 'PENDING').toUpperCase()
+  const complianceStatus: RerouteOption['complianceStatus'] =
+    status === 'PASS' ? 'PASS' : status === 'FLAG' ? 'FLAG' : 'CRISIS'
+  const transitMode = (option.transit_mode || 'maritime').toLowerCase()
+  const uiMode: RerouteOption['type'] =
+    transitMode === 'air' ? 'air' : transitMode === 'multimodal' ? 'multimodal' : 'maritime'
+
+  return {
+    id: option.route_id,
+    title: option.strategist_note || `Route ${option.route_id}`,
+    type: uiMode,
+    duration: `~${Number(option.estimated_hours || 0).toFixed(1)}h`,
+    cost: `Risk ${(option.risk_score || 100).toFixed(1)}` ,
+    complianceStatus,
+    note: option.compliance_note || undefined,
+  }
 }
 
 const rerouteOptions: RerouteOption[] = [
@@ -157,6 +177,9 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
   const [approvedAt, setApprovedAt] = useState<string | undefined>()
   const [edgeState, setEdgeState] = useState<'normal' | 'no_compliant_route' | 'incomplete_drafts' | 'feed_lost' | 'compliance_recheck' | 'call_failed' | 'session_expired'>('normal')
   const [showDevSimulator, setShowDevSimulator] = useState(false)
+  const [ticketData, setTicketData] = useState<CrisisTicketResponse | null>(null)
+  const [ticketLoadError, setTicketLoadError] = useState<string | null>(null)
+  const [liveRerouteOptions, setLiveRerouteOptions] = useState<RerouteOption[]>(rerouteOptions)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Live countdown timer
@@ -165,6 +188,33 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
       setSecondsLeft((prev) => Math.max(0, prev - 1))
     }, 1000)
     return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadTicket = async () => {
+      try {
+        const latestTicket = await getLatestCrisisTicket()
+        if (cancelled) return
+
+        setTicketData(latestTicket)
+        if (latestTicket.evaluated_routes && latestTicket.evaluated_routes.length > 0) {
+          const mapped = latestTicket.evaluated_routes.map(mapCrisisOptionToUi)
+          setLiveRerouteOptions(mapped)
+          setSelectedOptionId((prev) => (mapped.some((option) => option.id === prev) ? prev : mapped[0].id))
+        }
+      } catch (error) {
+        if (cancelled) return
+        setTicketLoadError(error instanceof ApiError ? error.message : 'Unable to load latest crisis ticket')
+      }
+    }
+
+    void loadTicket()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const formatTime = (seconds: number) => {
@@ -177,7 +227,9 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
   const isUrgent = secondsLeft < 7200
   const isCriticalUrgent = secondsLeft < 3600
 
-  const selectedOption = rerouteOptions.find((o) => o.id === selectedOptionId)
+  const selectedOption = liveRerouteOptions.find((o) => o.id === selectedOptionId)
+  const ticketStatus = ticketData?.status || 'PENDING_APPROVAL'
+  const ticketStatusTone = ticketStatus === 'APPROVED' ? '#1ECC8B' : '#F0A500'
 
   const handleReject = (reason: string) => {
     console.log('[v0] Rejection:', reason)
@@ -192,14 +244,30 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
     setSignatureModalState('verifying')
     await new Promise((r) => setTimeout(r, 1500))
     setSignatureModalState('writing')
-    await new Promise((r) => setTimeout(r, 1200))
-    setSignatureModalState('success')
-    await new Promise((r) => setTimeout(r, 800))
-    setIsSignatureModalOpen(false)
-    setIsApproved(true)
-    setApprovedAt(new Date().toISOString())
-    setSignatureModalState('idle')
-    setTimeout(() => setShowCascadePanel(true), 800)
+
+    try {
+      const fallbackTicketId = Number(String(ticketData?.ticket_id || 0))
+      if (fallbackTicketId > 0) {
+        const approval = await approveCrisisTicket(fallbackTicketId, 'Approved from command center signature flow')
+        setTicketData((prev) =>
+          prev
+            ? { ...prev, status: approval.status }
+            : prev,
+        )
+      }
+
+      await new Promise((r) => setTimeout(r, 1200))
+      setSignatureModalState('success')
+      await new Promise((r) => setTimeout(r, 800))
+      setIsSignatureModalOpen(false)
+      setIsApproved(true)
+      setApprovedAt(new Date().toISOString())
+      setSignatureModalState('idle')
+      setTimeout(() => setShowCascadePanel(true), 800)
+    } catch (error) {
+      setSignatureModalState('error')
+      setTicketLoadError(error instanceof ApiError ? error.message : 'RP approval write failed')
+    }
   }
 
   return (
@@ -279,7 +347,7 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
                 color: '#E6EDF3',
               }}
             >
-              SHP-2026-0441
+              {ticketData?.shipment_id || 'SHP-2026-0441'}
             </span>
           </div>
           <div
@@ -487,12 +555,12 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
                   fontFamily: 'JetBrains Mono, monospace',
                 }}
               >
-                2 pre-validated options
+                {liveRerouteOptions.length} pre-validated options
               </div>
             </div>
 
             <motion.div className="space-y-2 mt-3" layout>
-              {rerouteOptions.map((option, idx) => {
+              {liveRerouteOptions.map((option, idx) => {
                 const isSelected = selectedOptionId === option.id
                 return (
                   <motion.div
@@ -569,6 +637,11 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
                 )
               })}
             </motion.div>
+            {ticketLoadError && (
+              <div className="text-xs mt-2" style={{ color: '#F0A500', fontFamily: 'JetBrains Mono, monospace' }}>
+                {ticketLoadError}
+              </div>
+            )}
           </div>
 
           <div style={{ height: '1px', background: 'rgba(255,255,255,0.04)', margin: '16px 0' }} />
@@ -816,18 +889,18 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
                   color: '#E6EDF3',
                 }}
               >
-                #TKT-2026-0441
+                {`#TKT-${String(ticketData?.ticket_id || 441).padStart(4, '0')}`}
               </span>
               <div
                 className="text-xs px-2 py-1 rounded"
                 style={{
-                  background: 'rgba(240,165,0,0.15)',
-                  color: '#F0A500',
+                  background: ticketStatus === 'APPROVED' ? 'rgba(30,204,139,0.15)' : 'rgba(240,165,0,0.15)',
+                  color: ticketStatusTone,
                   fontFamily: 'JetBrains Mono, monospace',
                   fontWeight: 'bold',
                 }}
               >
-                PENDING
+                {ticketStatus}
               </div>
             </div>
 
@@ -1167,7 +1240,7 @@ export function CrisisTicketPage({ userRole = 'responsible_person' }: CrisisTick
                 color: '#E6EDF3',
               }}
             >
-              SHP-2026-0441
+              {ticketData?.shipment_id || 'SHP-2026-0441'}
             </span>
           </div>
 

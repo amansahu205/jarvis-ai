@@ -1,39 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Search, Filter, ChevronDown, MapPin, Package, AlertTriangle, X } from "lucide-react"
+import { getLatestShipmentSummary } from "@/lib/api"
 
 interface SearchPanelProps {
   onShipmentSelect?: (shipmentId: string) => void
 }
-
-const mockShipments = [
-  {
-    id: "SHP-2026-0441",
-    route: "Mumbai → New York",
-    status: "critical",
-    temp: "7.4°C",
-    eta: "9h 42m",
-    coords: { lng: 32.35, lat: 30.0 },
-  },
-  {
-    id: "SHP-2026-0438",
-    route: "Frankfurt → Singapore",
-    status: "warning",
-    temp: "3.1°C",
-    eta: "6h 14m",
-    coords: { lng: 50.1109, lat: 8.6821 },
-  },
-  {
-    id: "SHP-2026-0435",
-    route: "London → Johannesburg",
-    status: "normal",
-    temp: "4.8°C",
-    eta: "On schedule",
-    coords: { lng: -0.1276, lat: 51.5074 },
-  },
-]
 
 const statusColors = {
   critical: { bg: "rgba(255,68,68,0.1)", border: "rgba(255,68,68,0.3)", text: "#FF4444" },
@@ -45,8 +19,37 @@ export function SearchPanel({ onShipmentSelect }: SearchPanelProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [isExpanded, setIsExpanded] = useState(true)
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null)
+  const [shipments, setShipments] = useState<Array<{ id: string; route: string; status: "critical" | "warning" | "normal"; temp: string; eta: string }>>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const filteredShipments = mockShipments.filter((s) => {
+  useEffect(() => {
+    let cancelled = false
+    getLatestShipmentSummary()
+      .then((rows) => {
+        if (cancelled) return
+        setShipments(
+          rows.map((row) => ({
+            id: row.shipment_id,
+            route: row.route,
+            status: row.status === "critical" || row.status === "warning" ? row.status : "normal",
+            temp: row.temp,
+            eta: row.eta,
+          })),
+        )
+        setIsLoading(false)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setShipments([])
+          setIsLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const filteredShipments = shipments.filter((s) => {
     const matchesSearch =
       s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.route.toLowerCase().includes(searchQuery.toLowerCase())
@@ -171,79 +174,100 @@ export function SearchPanel({ onShipmentSelect }: SearchPanelProps) {
                 style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
               >
                 <div className="pt-3" />
-                {filteredShipments.map((shipment, index) => {
-                  const colors = statusColors[shipment.status as keyof typeof statusColors]
-                  return (
-                    <motion.button
-                      key={shipment.id}
-                      initial={{ x: -10, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      onClick={() => onShipmentSelect?.(shipment.id)}
-                      className="w-full p-3 rounded-xl text-left transition-all duration-200 group"
-                      style={{
-                        background: "rgba(255,255,255,0.02)",
-                        border: `1px solid ${colors.border}`,
-                        borderLeft: `3px solid ${colors.text}`,
-                      }}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <span
-                            className="text-[12px] font-mono"
-                            style={{ color: "#E6EDF3", fontFamily: "JetBrains Mono, monospace" }}
-                          >
-                            {shipment.id}
-                          </span>
-                          <div className="flex items-center gap-1 mt-1">
-                            <MapPin size={10} style={{ color: "#484F58" }} />
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <div
+                      className="h-6 w-6 rounded-full border-2 border-t-transparent animate-spin"
+                      style={{ borderColor: "rgba(88,166,255,0.35)", borderTopColor: "transparent" }}
+                    />
+                  </div>
+                ) : filteredShipments.length === 0 ? (
+                  <div
+                    className="rounded-xl px-4 py-6 text-center"
+                    style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <div className="text-sm font-medium" style={{ color: "#E6EDF3" }}>
+                      No active shipments found. Upload a PO to begin.
+                    </div>
+                    <div className="mt-2 text-xs" style={{ color: "#8B949E" }}>
+                      Search results will appear here once telemetry and shipment rows are hydrated.
+                    </div>
+                  </div>
+                ) : (
+                  filteredShipments.map((shipment, index) => {
+                    const colors = statusColors[shipment.status as keyof typeof statusColors]
+                    return (
+                      <motion.button
+                        key={shipment.id}
+                        initial={{ x: -10, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        onClick={() => onShipmentSelect?.(shipment.id)}
+                        className="w-full p-3 rounded-xl text-left transition-all duration-200 group"
+                        style={{
+                          background: "rgba(255,255,255,0.02)",
+                          border: `1px solid ${colors.border}`,
+                          borderLeft: `3px solid ${colors.text}`,
+                        }}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
                             <span
-                              className="text-[11px]"
-                              style={{ color: "#8B949E", fontFamily: "Inter, sans-serif" }}
+                              className="text-[12px] font-mono"
+                              style={{ color: "#E6EDF3", fontFamily: "JetBrains Mono, monospace" }}
                             >
-                              {shipment.route}
+                              {shipment.id}
                             </span>
+                            <div className="flex items-center gap-1 mt-1">
+                              <MapPin size={10} style={{ color: "#484F58" }} />
+                              <span
+                                className="text-[11px]"
+                                style={{ color: "#8B949E", fontFamily: "Inter, sans-serif" }}
+                              >
+                                {shipment.route}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        <span
-                          className="px-2 py-0.5 rounded text-[9px] uppercase"
-                          style={{
-                            background: colors.bg,
-                            color: colors.text,
-                            fontFamily: "JetBrains Mono, monospace",
-                          }}
-                        >
-                          {shipment.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          <Package size={10} style={{ color: "#484F58" }} />
                           <span
-                            className="text-[11px]"
-                            style={{ color: colors.text, fontFamily: "JetBrains Mono, monospace" }}
-                          >
-                            {shipment.temp}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {shipment.status === "critical" && (
-                            <AlertTriangle size={10} style={{ color: "#FF4444" }} />
-                          )}
-                          <span
-                            className="text-[11px]"
+                            className="px-2 py-0.5 rounded text-[9px] uppercase"
                             style={{
-                              color: shipment.status === "critical" ? "#FF4444" : "#8B949E",
+                              background: colors.bg,
+                              color: colors.text,
                               fontFamily: "JetBrains Mono, monospace",
                             }}
                           >
-                            {shipment.eta}
+                            {shipment.status}
                           </span>
                         </div>
-                      </div>
-                    </motion.button>
-                  )
-                })}
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-1">
+                            <Package size={10} style={{ color: "#484F58" }} />
+                            <span
+                              className="text-[11px]"
+                              style={{ color: colors.text, fontFamily: "JetBrains Mono, monospace" }}
+                            >
+                              {shipment.temp}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {shipment.status === "critical" && (
+                              <AlertTriangle size={10} style={{ color: "#FF4444" }} />
+                            )}
+                            <span
+                              className="text-[11px]"
+                              style={{
+                                color: shipment.status === "critical" ? "#FF4444" : "#8B949E",
+                                fontFamily: "JetBrains Mono, monospace",
+                              }}
+                            >
+                              {shipment.eta}
+                            </span>
+                          </div>
+                        </div>
+                      </motion.button>
+                    )
+                  })
+                )}
               </div>
             </motion.div>
           )}

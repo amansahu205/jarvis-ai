@@ -1,36 +1,21 @@
 "use client"
 
-import { useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { motion } from "framer-motion"
+import { getActiveShipments } from "@/lib/api"
 import * as THREE from "three"
 import { ShipmentCard } from "./shipment-card"
 
-// Background wireframe globe
-function WireframeGlobe() {
-  const meshRef = useRef<THREE.Mesh>(null)
-
-  useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += 0.001
-      meshRef.current.rotation.x += 0.0003
-    }
-  })
-
-  return (
-    <mesh ref={meshRef} position={[3, 0, -2]}>
-      <icosahedronGeometry args={[4, 2]} />
-      <meshBasicMaterial wireframe color="#58A6FF" transparent opacity={0.04} />
-    </mesh>
-  )
-}
-
+// Background accent panel
 function BackgroundScene() {
   return (
-    <>
-      <WireframeGlobe />
-      <ambientLight intensity={0.5} />
-    </>
+    <div
+      className="absolute inset-0"
+      style={{
+        background: 'radial-gradient(circle at 20% 20%, rgba(88,166,255,0.08), transparent 32%), radial-gradient(circle at 80% 30%, rgba(30,204,139,0.06), transparent 28%), linear-gradient(180deg, rgba(8,11,15,0.95), rgba(8,11,15,0.75))',
+      }}
+    />
   )
 }
 
@@ -60,7 +45,7 @@ function HealthPill({ name, status }: { name: string; status: "online" | "degrad
 }
 
 export function ActiveShipmentsPage() {
-  const shipments = [
+  const [shipments, setShipments] = useState<any[]>([
     {
       status: "critical" as const,
       shipmentId: "SHP-2026-0441",
@@ -93,7 +78,33 @@ export function ActiveShipmentsPage() {
       route: "Tokyo → Sydney",
       lastReading: "47m ago",
     },
-  ]
+  ])
+
+  useEffect(() => {
+    let cancelled = false
+    getActiveShipments()
+      .then((rows) => {
+        if (cancelled || !rows.length) return
+        setShipments(
+          rows.map((row) => ({
+            status: row.status === "feed_lost" ? "feed-lost" : row.status,
+            shipmentId: row.shipmentId,
+            route: `${row.origin} → ${row.destination}`,
+            temp: row.currentTemp,
+            trend: row.trend ?? undefined,
+            timeRemaining: row.eta,
+            countdownTime: row.countdownTime ?? row.eta,
+            crisisMessage: row.crisisMessage ?? undefined,
+            warningNote: row.warningNote ?? undefined,
+            lastReading: row.lastReading ?? undefined,
+          })),
+        )
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="relative min-h-screen" style={{ background: "#080B0F" }}>

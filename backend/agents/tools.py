@@ -1,13 +1,23 @@
 from __future__ import annotations
 
+import base64
+import json
+import logging
+import re
+from statistics import mean
 from typing import Any
 
+import httpx
+from anthropic import AsyncAnthropic
 from pinecone import Pinecone
 from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.config import settings
+from app.schemas.shipments import ParsedShipment
 from agents.state import CandidateRoute, RiskBreakdown
+
+logger = logging.getLogger(__name__)
 
 
 class RoutePathfinderTool:
@@ -192,20 +202,30 @@ class RoutePathfinderTool:
             """
         )
 
-        if current_coords:
-            origin_lat, origin_lng = current_coords[0], current_coords[1]
-        else:
-            origin_lat, origin_lng = 0.0, 0.0
+        origin_fallback = current_coords if current_coords and len(current_coords) == 2 else None
+        origin_lat, origin_lng = await self._resolve_anchor_coords(
+            session=session,
+            location_id=origin_id,
+            fallback=origin_fallback,
+        )
+        dest_lat, dest_lng = await self._resolve_anchor_coords(
+            session=session,
+            location_id=dest_id,
+            fallback=None,
+        )
+
+        origin_air_id, origin_sea_id = await self._resolve_mode_specific_ids(session, origin_id)
+        dest_air_id, dest_sea_id = await self._resolve_mode_specific_ids(session, dest_id)
 
         params = {
-            "origin_air": origin_id,
-            "dest_air": dest_id,
-            "origin_sea": origin_id,
-            "dest_sea": dest_id,
+            "origin_air": origin_air_id,
+            "dest_air": dest_air_id,
+            "origin_sea": origin_sea_id,
+            "dest_sea": dest_sea_id,
             "origin_lat": origin_lat,
             "origin_lng": origin_lng,
-            "dest_lat": origin_lat,
-            "dest_lng": origin_lng,
+            "dest_lat": dest_lat,
+            "dest_lng": dest_lng,
             "air_limit": max_candidates,
             "sea_limit": max_candidates,
             "max_candidates": max_candidates,
@@ -277,53 +297,428 @@ class RoutePathfinderTool:
 
         return 0.0, 0.0
 
+    async def _resolve_mode_specific_ids(
+        self,
+        session: AsyncSession,
+        location_id: str,
+    ) -> tuple[str, str]:
+        normalized = location_id.upper()
+
+        airport_result = await session.execute(
+            text(
+                """
+                SELECT iata_code
+                FROM public.airports
+                WHERE upper(iata_code) = upper(:location_id)
+                LIMIT 1
+                """
+            ),
+            {"location_id": normalized},
+        )
+        airport_row = airport_result.first()
+        airport_id = str(airport_row[0]).upper() if airport_row and airport_row[0] else None
+
+        seaport_result = await session.execute(
+            text(
+                """
+                SELECT un_code
+                FROM public.seaports
+                WHERE upper(un_code) = upper(:location_id)
+                LIMIT 1
+                """
+            ),
+            {"location_id": normalized},
+        )
+        seaport_row = seaport_result.first()
+        seaport_id = str(seaport_row[0]).upper() if seaport_row and seaport_row[0] else None
+
+        # planned_routes ids may be IATA (air) or UN/LOCODE (sea); map explicitly by mode.
+        if airport_id is None and len(normalized) == 3:
+            airport_id = normalized
+        if seaport_id is None and len(normalized) >= 5:
+            seaport_id = normalized
+
+        return (airport_id or normalized, seaport_id or normalized)
+
+
+class POParserTool:
+    """Multimodal purchase order parser using Anthropic."""
+
+    def __init__(self) -> None:
+        self._client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY) if settings.ANTHROPIC_API_KEY else None
+        self._model = 'claude-3-5-sonnet-20241022'
+
+    def _build_media_block(self, *, filename: str, content_type: str | None, file_bytes: bytes) -> dict[str, Any]:
+        detected_type = content_type or ''
+        lowered = filename.lower()
+        if not detected_type:
+            if lowered.endswith('.pdf'):
+                detected_type = 'application/pdf'
+            elif lowered.endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                detected_type = 'image/png' if lowered.endswith('.png') else 'image/jpeg'
+            else:
+                detected_type = 'application/pdf'
+
+        encoded = base64.b64encode(file_bytes).decode('utf-8')
+        if detected_type.startswith('image/'):
+            return {
+                'type': 'image',
+                'source': {
+                    'type': 'base64',
+                    'media_type': detected_type,
+                    'data': encoded,
+                },
+            }
+
+        return {
+            'type': 'document',
+            'source': {
+                'type': 'base64',
+                'media_type': 'application/pdf',
+                'data': encoded,
+            },
+        }
+
+    def _extract_json(self, text_output: str) -> dict[str, Any]:
+        cleaned = text_output.strip()
+        if cleaned.startswith('`'):
+            cleaned = re.sub(r'^`(?:json)?\s*', '', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'`\s*$', '', cleaned)
+        match = re.search(r'\{.*\}', cleaned, flags=re.DOTALL)
+        json_blob = match.group(0) if match else cleaned
+        return json.loads(json_blob)
+
+    async def parse_upload(self, *, filename: str, content_type: str | None, file_bytes: bytes) -> ParsedShipment:
+        if not self._client:
+            raise RuntimeError('ANTHROPIC_API_KEY is required for PO parsing')
+
+        prompt = (
+            'Extract the purchase order into strict JSON with these fields only: '
+            'shipment_code, sensor_id, medication_name, lot_number, temp_min_c, temp_max_c, '
+            'humidity_min_pct, humidity_max_pct, origin_locode, destination_locode. '
+            'Normalize numeric values as numbers, preserve codes exactly, and do not add commentary. '
+            'If a field is missing, infer it from the document if possible; otherwise use an empty string for text fields '
+            'and 0 for numeric fields.'
+        )
+
+        media_block = self._build_media_block(filename=filename, content_type=content_type, file_bytes=file_bytes)
+        response = await self._client.messages.create(
+            model=self._model,
+            max_tokens=800,
+            temperature=0,
+            system='You are a multimodal purchase order parser for pharmaceutical logistics.',
+            messages=[
+                {
+                    'role': 'user',
+                    'content': [
+                        media_block,
+                        {
+                            'type': 'text',
+                            'text': prompt,
+                        },
+                    ],
+                }
+            ],
+        )
+
+        text_output = ''.join(block.text for block in response.content if getattr(block, 'type', None) == 'text')
+        payload = self._extract_json(text_output)
+        return ParsedShipment.model_validate(payload)
+
 
 class RiskRankerTool:
     """Risk ranker wrapper producing weighted 0-100 risk scores."""
 
-    def score_route(
+    async def _get_hub_weather(self, lat: float, lng: float) -> float | None:
+        if not settings.OPENWEATHER_API_KEY:
+            return None
+
+        url = 'https://api.openweathermap.org/data/2.5/weather'
+        params = {
+            'lat': lat,
+            'lon': lng,
+            'appid': settings.OPENWEATHER_API_KEY,
+            'units': 'metric',
+        }
+
+        try:
+            timeout = httpx.Timeout(5.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                payload = response.json()
+                temp = payload.get('main', {}).get('temp')
+                return float(temp) if temp is not None else None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('OpenWeather lookup failed for (%s, %s): %s', lat, lng, exc)
+            return None
+
+    async def _get_cargo_constraints(self, session: AsyncSession, cargo_type: str) -> tuple[float, float]:
+        defaults: dict[str, tuple[float, float]] = {
+            'vaccine': (2.0, 8.0),
+            'biologic': (2.0, 8.0),
+            'insulin': (2.0, 8.0),
+            'refrigerated': (2.0, 8.0),
+            'chilled': (2.0, 8.0),
+            'ambient': (15.0, 25.0),
+        }
+        fallback = defaults.get(cargo_type.lower(), (2.0, 8.0))
+
+        try:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT min_temp_c, max_temp_c
+                    FROM public.cargo_stability_profiles
+                    WHERE lower(cargo_type) = lower(:cargo_type)
+                    LIMIT 1
+                    """
+                ),
+                {'cargo_type': cargo_type},
+            )
+            row = result.first()
+            if row and row[0] is not None and row[1] is not None:
+                return float(row[0]), float(row[1])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('cargo_stability_profiles lookup failed for cargo=%s: %s', cargo_type, exc)
+
+        return fallback
+
+    async def _get_shipments_humidity_bounds(self, session: AsyncSession, shipment_id: str | None) -> tuple[float, float]:
+        if not shipment_id:
+            return 35.0, 60.0
+
+        try:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT safe_humidity_min, safe_humidity_max
+                    FROM public.shipments
+                    WHERE shipment_code = :shipment_id
+                    LIMIT 1
+                    """
+                ),
+                {'shipment_id': shipment_id},
+            )
+            row = result.first()
+            if row and row[0] is not None and row[1] is not None:
+                return float(row[0]), float(row[1])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('shipments humidity bounds lookup failed for shipment=%s: %s', shipment_id, exc)
+
+        return 35.0, 60.0
+
+    async def _get_latest_humidity_pct(self, session: AsyncSession, shipment_id: str | None) -> float | None:
+        if not shipment_id:
+            return None
+
+        try:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT humidity_pct
+                    FROM public.telemetry_readings
+                    WHERE shipment_id = :shipment_id
+                      AND humidity_pct IS NOT NULL
+                    ORDER BY recorded_at DESC, received_at DESC
+                    LIMIT 1
+                    """
+                ),
+                {'shipment_id': shipment_id},
+            )
+            row = result.first()
+            if row and row[0] is not None:
+                return float(row[0])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('telemetry humidity lookup failed for shipment=%s: %s', shipment_id, exc)
+
+        return None
+
+    async def get_cumulative_excursion_duration(self, session: AsyncSession, shipment_id: str | None) -> int:
+        if not shipment_id:
+            return 0
+
+        try:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT COALESCE(SUM(excursion_duration_seconds), 0)
+                    FROM public.telemetry_readings
+                    WHERE shipment_id = :shipment_id
+                    """
+                ),
+                {'shipment_id': shipment_id},
+            )
+            value = result.scalar_one_or_none()
+            return int(value or 0)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('excursion duration aggregation failed for shipment=%s: %s', shipment_id, exc)
+            return 0
+
+    async def _resolve_location_country_code(self, session: AsyncSession, location_id: str) -> str | None:
+        result = await session.execute(
+            text(
+                """
+                SELECT country_code FROM (
+                    SELECT a.country AS country_code
+                    FROM public.airports a
+                    WHERE upper(a.iata_code) = upper(:location_id)
+                    UNION ALL
+                    SELECT s.country AS country_code
+                    FROM public.seaports s
+                    WHERE upper(s.un_code) = upper(:location_id)
+                    LIMIT 1
+                ) t
+                """
+            ),
+            {'location_id': location_id},
+        )
+        row = result.first()
+        if row and row[0]:
+            return str(row[0]).upper()
+        if len(location_id) == 3:
+            return location_id.upper()
+        return None
+
+    async def _get_country_risk_profile(
         self,
+        session: AsyncSession,
+        country_codes: list[str],
+    ) -> dict[str, tuple[float, float]]:
+        unique_codes = []
+        seen = set()
+        for code in country_codes:
+            if not code:
+                continue
+            normalized = code.upper()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique_codes.append(normalized)
+
+        if not unique_codes:
+            return {}
+
+        try:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT country_code, political_stability, customs_complexity
+                    FROM public.country_risk_profiles
+                    WHERE country_code = ANY(:country_codes)
+                    """
+                ),
+                {'country_codes': unique_codes},
+            )
+            rows = result.fetchall()
+            return {str(row[0]).upper(): (float(row[1]), float(row[2])) for row in rows}
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('country_risk_profiles lookup failed for codes=%s: %s', unique_codes, exc)
+            return {}
+
+    async def _resolve_location_coords(
+        self,
+        session: AsyncSession,
+        location_id: str,
+    ) -> list[float] | None:
+        result = await session.execute(
+            text(
+                """
+                SELECT latitude, longitude FROM (
+                    SELECT a.latitude, a.longitude
+                    FROM public.airports a
+                    WHERE upper(a.iata_code) = upper(:location_id)
+                    UNION ALL
+                    SELECT s.latitude, s.longitude
+                    FROM public.seaports s
+                    WHERE upper(s.un_code) = upper(:location_id)
+                    LIMIT 1
+                ) t
+                """
+            ),
+            {'location_id': location_id},
+        )
+        row = result.first()
+        if row and row[0] is not None and row[1] is not None:
+            return [float(row[0]), float(row[1])]
+        return None
+
+    async def score_route(
+        self,
+        session: AsyncSession,
         route: CandidateRoute,
         cargo_type: str,
-        crisis_type: str | None = None,
+        hub_coords: list[float] | None = None,
+        shipment_id: str | None = None,
     ) -> tuple[float, RiskBreakdown]:
-        # Thermal risk: more transit time and crisis-related thermal alerts increase risk.
-        base_thermal = min(100.0, route.estimated_hours * 2.6)
-        if cargo_type.lower() in {"vaccine", "biologic", "insulin"}:
-            base_thermal += 12.0
-        if crisis_type and "temp" in crisis_type.lower():
-            base_thermal += 18.0
+        cargo_min_temp_c, cargo_max_temp_c = await self._get_cargo_constraints(session, cargo_type)
+        humidity_min_pct, humidity_max_pct = await self._get_shipments_humidity_bounds(session, shipment_id)
+        humidity_pct = await self._get_latest_humidity_pct(session, shipment_id)
 
-        # Geopolitical risk: chokepoints and broad transits increase risk.
-        route_tokens = " ".join(route.path_nodes).lower()
-        geo = 22.0
-        if "suez" in route_tokens:
-            geo += 14.0
-        if "panama" in route_tokens:
-            geo += 11.0
-        if route.transit_mode == "maritime":
-            geo += 6.0
+        weather_coords = hub_coords
+        if weather_coords is None and route.waypoints:
+            weather_coords = route.waypoints[0]
+        if weather_coords is None:
+            weather_coords = await self._resolve_location_coords(session, route.origin_id)
 
-        # Operational risk: more legs and multimodal hops increase handling risk.
-        ops = 12.0 + (route.leg_count - 1) * 15.0
-        if route.transit_mode == "multimodal":
-            ops += 8.0
+        hub_temp_c = None
+        if weather_coords is not None and len(weather_coords) == 2:
+            hub_temp_c = await self._get_hub_weather(float(weather_coords[0]), float(weather_coords[1]))
 
-        thermal = max(0.0, min(100.0, base_thermal))
-        geopolitical = max(0.0, min(100.0, geo))
-        operational = max(0.0, min(100.0, ops))
+        if hub_temp_c is None:
+            thermal_risk = 45.0
+        else:
+            delta = hub_temp_c - cargo_max_temp_c
+            if delta > 0:
+                thermal_risk = 60.0 + (delta * 4.0)
+            else:
+                thermal_risk = 25.0 + (abs(delta) * 2.5)
+            thermal_risk = max(0.0, min(100.0, thermal_risk))
 
-        # Weighted risk score (0-100)
-        risk_score = (0.45 * thermal) + (0.35 * geopolitical) + (0.20 * operational)
+        humidity_penalty = 0.0
+        if humidity_pct is not None and (humidity_pct < humidity_min_pct or humidity_pct > humidity_max_pct):
+            deviation = min(abs(humidity_pct - humidity_min_pct), abs(humidity_pct - humidity_max_pct))
+            humidity_penalty = min(30.0, 10.0 + (deviation * 1.5))
+
+        cumulative_excursion_seconds = await self.get_cumulative_excursion_duration(session, shipment_id)
+        stability_penalty = 0.0
+        if cumulative_excursion_seconds > 7200:
+            stability_penalty = min(40.0, 12.0 + ((cumulative_excursion_seconds - 7200) / 600.0))
+
+        country_codes: list[str] = []
+        for node in route.path_nodes:
+            country_code = await self._resolve_location_country_code(session, node)
+            if country_code:
+                country_codes.append(country_code)
+
+        risk_map = await self._get_country_risk_profile(session, country_codes)
+        political_scores = [value[0] for value in risk_map.values()]
+        customs_scores = [value[1] for value in risk_map.values()]
+        geopolitical_risk = mean(political_scores) if political_scores else 50.0
+        customs_risk = mean(customs_scores) if customs_scores else 50.0
+
+        operational_risk = max(0.0, min(100.0, 25.0 * max(0, route.leg_count - 1)))
+
+        route.compliance_summary = (
+            f"Cargo stability {cargo_min_temp_c:.1f}-{cargo_max_temp_c:.1f}C; "
+            f"humidity={humidity_pct if humidity_pct is not None else 'unknown'} "
+            f"safe_range={humidity_min_pct:.1f}-{humidity_max_pct:.1f}%; "
+            f"excursion_seconds={cumulative_excursion_seconds}; "
+            f"weather_temp={hub_temp_c if hub_temp_c is not None else 'unknown'}; "
+            f"country_political_avg={geopolitical_risk:.1f}; "
+            f"country_customs_avg={customs_risk:.1f}"
+        )
+
+        risk_score = (0.40 * thermal_risk) + (0.20 * geopolitical_risk) + (0.15 * operational_risk) + humidity_penalty + stability_penalty
         risk_score = float(max(0.0, min(100.0, risk_score)))
 
         breakdown = RiskBreakdown(
-            thermal=round(thermal, 2),
-            geopolitical=round(geopolitical, 2),
-            operational=round(operational, 2),
+            thermal=round(thermal_risk, 2),
+            humidity=round(humidity_penalty, 2),
+            geopolitical=round(geopolitical_risk, 2),
+            operational=round(operational_risk, 2),
         )
         return round(risk_score, 2), breakdown
-
 
 class ComplianceRAGTool:
     """Compliance RAG wrapper over Pinecone index for clause retrieval."""
@@ -391,6 +786,11 @@ class ComplianceRAGTool:
             return " | ".join(summaries)
         except Exception as exc:
             return f"Compliance RAG lookup failed: {exc}"
+
+
+
+
+
 
 
 

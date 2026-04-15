@@ -14,6 +14,8 @@ from app.schemas.telemetry import (
     TelemetryIngestResponse,
     TelemetryLatestResponse,
 )
+from app.schemas.shipments import ShipmentSummaryItem
+from app.services.shipment_service import load_latest_summary
 
 router = APIRouter()
 
@@ -151,3 +153,12 @@ async def latest_telemetry(
             recorded_at=latest.recorded_at,
         )
     )
+
+
+@router.get("/latest-summary", status_code=200)
+async def latest_summary(
+    session: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+) -> SuccessResponse[list[ShipmentSummaryItem]]:
+    rows = await load_latest_summary(session)
+    return SuccessResponse(data=rows)

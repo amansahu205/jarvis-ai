@@ -12,8 +12,10 @@ class Settings(BaseSettings):
     AGENT_TOKEN_SECRET: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     ANTHROPIC_API_KEY: str = ''
+    GEMINI_API_KEY: str = ''
     PINECONE_API_KEY: str = ''
     PINECONE_INDEX_NAME: str = 'jarvis-compliance'
+    OPENWEATHER_API_KEY: str = ''
     ELEVENLABS_API_KEY: str = ''
     ELEVENLABS_AGENT_ID: str = ''
     TWILIO_ACCOUNT_SID: str = ''
@@ -27,3 +29,5 @@ def get_settings() -> Settings:
     return Settings()
 
 settings = get_settings()
+
+

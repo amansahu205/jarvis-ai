@@ -3,6 +3,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy import text
 
 from app.database import get_db
+from app.schemas.shipments import ActiveShipmentItem
+from app.services.shipment_service import load_active_shipments
 
 router = APIRouter()
 
@@ -60,3 +62,10 @@ async def search_locations(
 
     rows = result.mappings().all()
     return [dict(r) for r in rows]
+
+
+@router.get("/active-shipments", status_code=200)
+async def active_shipments(
+    session: AsyncSession = Depends(get_db),
+) -> list[ActiveShipmentItem]:
+    return await load_active_shipments(session)

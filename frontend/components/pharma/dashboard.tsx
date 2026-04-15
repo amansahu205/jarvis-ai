@@ -32,7 +32,8 @@ import {
   MessageSquare,
 } from "lucide-react"
 import { FuelPriceWidget } from "./fuel-price-widget"
-import POUploadModal from "./po-upload-modal"
+import { VerificationCard } from "./verification-card"
+import { createShipment, getActiveShipments, parsePurchaseOrder } from "@/lib/api"
 import { LocationSearch } from "@/components/LocationSearch"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,7 +65,7 @@ interface ActiveShipment {
   status: "CRITICAL" | "WARNING" | "NORMAL" | "DELIVERED"
   currentTemp: string
   eta: string
-  transitMode: "air" | "maritime" | "ground"
+  transitMode: "air" | "maritime" | "ground" | "multimodal"
   cargo: string
 }
 
@@ -84,7 +85,7 @@ const MOCK_STATS = {
   totalValue: 2840000,
 }
 
-const MOCK_ACTIVE_SHIPMENTS: ActiveShipment[] = [
+const INITIAL_ACTIVE_SHIPMENTS: ActiveShipment[] = [
   {
     id: "1",
     shipmentId: "SHP-2026-0441",
@@ -138,7 +139,9 @@ const MOCK_ACTIVE_SHIPMENTS: ActiveShipment[] = [
 export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [leftPanelTab, setLeftPanelTab] = useState<"import" | "manual">("import")
-  const [isPOModalOpen, setIsPOModalOpen] = useState(false)
+  const [dashboardState, setDashboardState] = useState<"idle" | "parsing" | "verifying" | "active">("idle")
+  const [parsedShipment, setParsedShipment] = useState<any | null>(null)
+  const [activeShipments, setActiveShipments] = useState<ActiveShipment[]>(INITIAL_ACTIVE_SHIPMENTS)
   const [routeAnalyzerData, setRouteAnalyzerData] = useState({
     origin: "",
     destination: "",
@@ -162,9 +165,61 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
     })
   }
 
-  const handleShipmentCreated = (shipment: ParsedShipment) => {
-    console.log("[v0] Shipment created:", shipment)
-    setIsPOModalOpen(false)
+  useEffect(() => {
+    let cancelled = false
+    getActiveShipments()
+      .then((shipments) => {
+        if (cancelled) return
+        const mapped = shipments.map((shipment) => ({
+          id: shipment.id,
+          shipmentId: shipment.shipmentId,
+          origin: shipment.origin,
+          destination: shipment.destination,
+          status: shipment.status.toUpperCase() as ActiveShipment["status"],
+          currentTemp: shipment.currentTemp,
+          eta: shipment.eta,
+          transitMode: shipment.transitMode,
+          cargo: shipment.cargo,
+        }))
+        setActiveShipments(mapped.length ? mapped : INITIAL_ACTIVE_SHIPMENTS)
+      })
+      .catch(() => setActiveShipments(INITIAL_ACTIVE_SHIPMENTS))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handlePoParse = async (file: File) => {
+    setDashboardState("parsing")
+    const parsed = await parsePurchaseOrder(file)
+    setParsedShipment(parsed)
+    setDashboardState("verifying")
+  }
+
+  const handleShipmentConfirmed = async () => {
+    if (!parsedShipment) return
+    setDashboardState("active")
+    const created = await createShipment(parsedShipment)
+    setActiveShipments((current) => [
+      {
+        id: String(created.id),
+        shipmentId: created.shipment_code,
+        origin: created.origin_locode,
+        destination: created.destination_locode,
+        status: "NORMAL",
+        currentTemp: `${created.temp_min_c.toFixed(1)}°C`,
+        eta: `${Math.max(1, Math.round(created.estimated_hours))}h`,
+        transitMode: created.transit_mode as ActiveShipment["transitMode"],
+        cargo: created.medication_name,
+      },
+      ...current,
+    ])
+    setDashboardState("active")
+  }
+
+  const handleVerificationReset = () => {
+    setParsedShipment(null)
+    setDashboardState("idle")
   }
 
   const getStatusColor = (status: ActiveShipment["status"]) => {
@@ -338,7 +393,7 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <ImportPOTab onOpenModal={() => setIsPOModalOpen(true)} />
+                    <ImportPOTab onParse={handlePoParse} phase={dashboardState} />
                   </motion.div>
                 ) : (
                   <motion.div
@@ -391,7 +446,7 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
                     color: "#58A6FF",
                   }}
                 >
-                  {MOCK_ACTIVE_SHIPMENTS.length}
+                  {activeShipments.length}
                 </span>
               </div>
               <button
@@ -409,7 +464,7 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
                 scrollbarColor: "rgba(88,166,255,0.3) transparent",
               }}
             >
-              {MOCK_ACTIVE_SHIPMENTS.map((shipment, idx) => (
+              {activeShipments.map((shipment, idx) => (
                 <motion.div
                   key={shipment.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -676,12 +731,18 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
         </div>
       </motion.div>
 
-      {/* PO Upload Modal */}
-      <POUploadModal
-        isOpen={isPOModalOpen}
-        onClose={() => setIsPOModalOpen(false)}
-        onShipmentCreated={handleShipmentCreated}
-      />
+      {parsedShipment ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-2xl">
+            <VerificationCard
+              shipment={parsedShipment}
+              status={dashboardState === "active" ? "active" : "verifying"}
+              onConfirm={handleShipmentConfirmed}
+              onReset={handleVerificationReset}
+            />
+          </div>
+        </div>
+      ) : null}
 
       <style jsx>{`
         @keyframes statusPulse {
@@ -749,7 +810,7 @@ function StatChip({
 // IMPORT PO TAB
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ImportPOTab({ onOpenModal }: { onOpenModal: () => void }) {
+function ImportPOTab({ onParse, phase }: { onParse: (file: File) => Promise<void>; phase: "idle" | "parsing" | "verifying" | "active" }) {
   const dropZoneRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -832,7 +893,7 @@ function ImportPOTab({ onOpenModal }: { onOpenModal: () => void }) {
 
       {/* Parse Button */}
       <motion.button
-        onClick={onOpenModal}
+        onClick={() => file && onParse(file)}
         disabled={!file}
         whileHover={{ boxShadow: file ? "0 0 30px rgba(88,166,255,0.4)" : "none" }}
         className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
@@ -845,7 +906,7 @@ function ImportPOTab({ onOpenModal }: { onOpenModal: () => void }) {
         }}
       >
         <Hexagon size={18} />
-        Parse with JARVIS
+        {phase === "parsing" ? "Parsing..." : "Parse with JARVIS"}
         <ArrowRight size={16} />
       </motion.button>
 

@@ -58,6 +58,68 @@ export interface RouteResponse {
   destination_coords: [number, number]
 }
 
+
+export interface RiskBreakdown {
+  thermal: number
+  geopolitical: number
+  operational: number
+}
+
+export interface CandidateRoute {
+  route_id: string
+  transit_mode: 'air' | 'maritime' | 'multimodal'
+  leg_count: number
+  estimated_hours: number
+  origin_id: string
+  destination_id: string
+  path_nodes: string[]
+  waypoints: [number, number][]
+  risk_score: number | null
+  risk_breakdown: RiskBreakdown | null
+  compliance_summary: string
+  strategist_note: string
+}
+
+export interface StrategistOutput {
+  recommended_route_id: string
+  risk_score: number
+  compliance_summary: string
+  thought_log: string[]
+  evaluated_routes: CandidateRoute[]
+}
+
+export interface CrisisRerouteOption {
+  option_rank: number
+  route_id: string
+  transit_mode: string
+  estimated_hours: number
+  risk_score: number
+  path_nodes: string[]
+  waypoints: [number, number][]
+  strategist_note: string | null
+  compliance_status: string | null
+  compliance_note: string | null
+  compliance_summary: string | null
+}
+
+export interface CrisisTicketResponse {
+  ticket_id: number
+  reading_id: string
+  shipment_id: string
+  status: string
+  recommended_route_id: string | null
+  risk_score: number | null
+  thought_log: string[]
+  evaluated_routes: CrisisRerouteOption[]
+}
+
+
+export interface ApproveTicketResponse {
+  ticket_id: number
+  status: string
+  approved_by: string
+}
+
 export interface Jurisdiction {
   id: string
   name: string
@@ -110,6 +172,19 @@ export const analyzeRoute = (origin: string, destination: string, transitMode: s
     origin, destination, transit_mode: transitMode, cargo_type: cargoType,
   })
 
+export const planStrategistRoute = (originId: string, destId: string, cargoType: string) =>
+  req<StrategistOutput>('POST', '/api/v1/strategist/plan', {
+    origin_id: originId, dest_id: destId, cargo_type: cargoType,
+  })
+
+export const getLatestCrisisTicket = () =>
+  req<CrisisTicketResponse>('GET', '/api/v1/strategist/tickets/latest')
+
+export const approveCrisisTicket = (ticketId: number, note?: string) =>
+  req<ApproveTicketResponse>('POST', `/api/v1/strategist/tickets/${ticketId}/approve`, {
+    note,
+  })
+
 export const spatialCheck = (origin: string, destination: string, transitMode: string, waypoints: [number, number][]) =>
   req<{ jurisdictions: Jurisdiction[] }>('POST', '/api/v1/regumap/spatial-check', {
     origin, destination, transit_mode: transitMode, waypoints,
@@ -123,3 +198,80 @@ export const fetchRouteGeometry = (payload: RouteGeometryRequest) =>
 
 export const getLatestTelemetry = () =>
   req<TelemetryLatestResponse>('GET', '/api/v1/telemetry/latest')
+
+
+export interface ParsedShipment {
+  shipment_code: string
+  sensor_id: string
+  medication_name: string
+  lot_number: string
+  temp_min_c: number
+  temp_max_c: number
+  humidity_min_pct: number
+  humidity_max_pct: number
+  origin_locode: string
+  destination_locode: string
+}
+
+export interface ShipmentRecord extends ParsedShipment {
+  id: number
+  created_by_user_id: number
+  status: string
+  transit_mode: 'air' | 'maritime' | 'ground' | 'multimodal'
+  estimated_hours: number
+  waypoints: [number, number][]
+  created_at: string
+  updated_at: string
+}
+
+export interface ShipmentSummaryItem {
+  shipment_id: string
+  route: string
+  status: 'critical' | 'warning' | 'normal' | 'feed_lost' | 'active'
+  temp: string
+  eta: string
+  coords: { lat: number; lng: number } | null
+  humidity: string | null
+  waypoints: [number, number][]
+  cargo: string
+  transit_mode: 'air' | 'maritime' | 'ground' | 'multimodal'
+}
+
+export interface ActiveShipmentItem {
+  id: string
+  shipmentId: string
+  origin: string
+  destination: string
+  status: 'critical' | 'warning' | 'normal' | 'feed_lost'
+  currentTemp: string
+  eta: string
+  transitMode: 'air' | 'maritime' | 'ground' | 'multimodal'
+  cargo: string
+  humidity: string | null
+  routeWaypoints: [number, number][]
+  currentPos: [number, number] | null
+  trend: string | null
+  countdownTime: string | null
+  lastReading: string | null
+  warningNote: string | null
+  crisisMessage: string | null
+}
+
+async function upload<T>(path: string, file: File): Promise<T> {
+  const token = getToken()
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await fetch(BASE + path, {
+    method: 'POST',
+    headers: token ? { Authorization: 'Bearer ' + token } : {},
+    body: formData,
+  })
+  const json = await res.json()
+  if (!res.ok) throw new ApiError(res.status, json.detail ?? 'Request failed')
+  return json.data as T
+}
+
+export const parsePurchaseOrder = (file: File) => upload<ParsedShipment>('/api/v1/shipments/parse-po', file)
+export const createShipment = (payload: ParsedShipment) => req<ShipmentRecord>('POST', '/api/v1/shipments/create', payload)
+export const getLatestShipmentSummary = () => req<ShipmentSummaryItem[]>('GET', '/api/v1/telemetry/latest-summary')
+export const getActiveShipments = () => req<ActiveShipmentItem[]>('GET', '/api/v1/locations/active-shipments')
