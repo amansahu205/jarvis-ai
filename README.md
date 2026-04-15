@@ -1,176 +1,237 @@
 # PharmaGuard AI
 
-<p align="center">
-	<img src="https://capsule-render.vercel.app/api?type=waving&height=220&text=PharmaGuard%20AI&fontAlign=50&fontAlignY=38&color=0:0D1117,40:1E3A8A,70:0EA5E9,100:10B981&fontColor=E6EDF3&desc=Autonomous%20Cold-Chain%20Monitoring%20%7C%20ReguMap%20Spatial%20Compliance&descAlign=50&descAlignY=60&animation=twinkling" alt="PharmaGuard AI Banner" />
-</p>
+PharmaGuard AI is a cold-chain intelligence platform for pharmaceutical logistics. It combines real-time telemetry monitoring, route planning, geospatial compliance checks, and human-in-the-loop approval workflows.
 
-<p align="center">
-	<img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=500&size=18&pause=1200&color=58A6FF&center=true&vCenter=true&width=900&lines=Anomaly+to+approved+reroute+in+under+10+minutes;Spatial+compliance+with+PostGIS+and+jurisdiction-aware+checks;Multi-agent+workflow+with+human-in-the-loop+approval" alt="Typing animation" />
-</p>
+This README is structured for two goals:
 
-<p align="center">
-	<img src="https://img.shields.io/badge/Challenge-UMD%20Agentic%20AI%202026-1f6feb?style=for-the-badge&logo=openai&logoColor=white" />
-	<img src="https://img.shields.io/badge/Backend-FastAPI-059669?style=for-the-badge&logo=fastapi&logoColor=white" />
-	<img src="https://img.shields.io/badge/Frontend-Next.js-0D1117?style=for-the-badge&logo=nextdotjs&logoColor=white" />
-	<img src="https://img.shields.io/badge/Database-Supabase%20Postgres-3ECF8E?style=for-the-badge&logo=supabase&logoColor=0D1117" />
-	<img src="https://img.shields.io/badge/Geospatial-PostGIS-2D6CDF?style=for-the-badge&logo=postgresql&logoColor=white" />
-</p>
+- Understand exactly what has been implemented in the prototype
+- Reproduce the system locally with minimal guesswork
 
----
+## Table of Contents
 
-## What This Project Does
+1. Problem and Solution Scope
+2. What Is Implemented
+3. Architecture
+4. Repository Structure
+5. Data and ETL Workflow
+6. API Surface
+7. Detailed Replication Guide
+8. Demo Walkthrough
+9. Remaining Work and Known Issues
+10. Submission Package
 
-PharmaGuard AI is a crisis-response platform for pharmaceutical cold-chain logistics.
+## 1) Problem and Solution Scope
 
-It monitors shipment telemetry, detects risk events, generates alternative routes, validates route compliance across jurisdictions, and presents approval-ready options to Responsible Persons before dispatch actions are executed.
+Pharmaceutical cold-chain shipments are vulnerable to temperature excursions, routing disruptions, and cross-border compliance complexity. PharmaGuard AI addresses this by:
 
-Core system outcomes:
+- Monitoring shipment context and telemetry
+- Generating route alternatives (air and maritime)
+- Evaluating risk (thermal, humidity, geopolitical, operational)
+- Performing jurisdiction-aware compliance checks
+- Presenting a decision-ready interface for Responsible Person (RP) approval
 
-- Real-time anomaly detection and escalation
-- Route generation for air and maritime transport
-- Spatial compliance intelligence powered by geospatial data
-- Human-in-the-loop decision control with auditability
+## 2) What Is Implemented
 
----
+### Backend capabilities
 
-## Architecture Snapshot
+- FastAPI service with versioned API under `/api/v1`
+- Auth endpoints and role-aware request handling
+- Shipment ingest and parse pipeline for PO documents
+- Strategist route planning endpoint returning ranked candidate routes
+- ReguMap route analysis stack:
+  - route planning
+  - route geometry retrieval
+  - spatial jurisdiction inference
+  - compliance check response enrichment
+- Risk scoring that includes:
+  - thermal risk
+  - humidity penalty
+  - geopolitical/customs risk
+  - operational complexity risk
+- OpenWeather integration for route-level weather temperature context
+- Crisis and telemetry related services and orchestration hooks
+
+### Frontend capabilities
+
+- Next.js application with role-oriented pharma dashboard views
+- ReguMap route planner UI with:
+  - origin/destination search
+  - transit mode and cargo type selection
+  - route option selection
+  - compliance timeline cards
+  - route risk summary
+- Map rendering with MapLibre + deck.gl overlays:
+  - selected route geometry
+  - alternate route arcs
+  - multi-hop arc segments when waypoints include intermediate nodes
+  - weather-aware selected-route color signal and weather badge
+
+### Data and geospatial capabilities
+
+- Scripts for EDA and ETL of airports, routes, seaports, and maritime lanes
+- PostGIS-backed spatial querying and line geometry operations
+- Jurisdiction extraction from route waypoints
+
+## 3) Architecture
+
+### High-level component map
 
 ```mermaid
 flowchart LR
-		A[Telemetry Stream] --> B[Sentinel Agent]
-		B --> C[Strategist Agent]
-		C --> D[ReguMap APIs]
-		D --> E[(Postgres + PostGIS)]
-		C --> F[Compliance Timeline]
-		C --> G[Diplomat Agent]
-		G --> H[Crisis Ticket]
-		F --> H
-		H --> I[Compliance Cop]
-		I --> J[RP Dashboard Approval]
-		J --> K[Downstream Dispatch]
+    A[Frontend Next.js] --> B[FastAPI /api/v1]
+    B --> C[Auth + Business APIs]
+    C --> D[Strategist Agent Tools]
+    C --> E[ReguMap Spatial and Compliance]
+    D --> F[(Postgres + PostGIS)]
+    E --> F
+    D --> G[OpenWeather API]
+    D --> H[Pinecone Compliance Retrieval]
 ```
 
----
+### Runtime flow for ReguMap
 
-## Repository Structure
+1. Frontend calls strategist plan endpoint with origin, destination, cargo.
+2. Backend generates candidate routes and scores them.
+3. Frontend selects a route and requests geometry.
+4. Frontend runs spatial-check to infer jurisdictions.
+5. Frontend runs compliance-check for enriched rule output.
+6. Map renders selected route plus alternate candidate arcs.
+
+### Backend API router composition
+
+API routers included under `/api/v1`:
+
+- `/auth`
+- `/regumap`
+- `/telemetry`
+- `/locations`
+- `/strategist`
+- `/shipments`
+
+## 4) Repository Structure
 
 ```text
 jarvis-ai/
-├── backend/
-│   ├── app/
-│   ├── scripts/
-│   │   ├── eda_logistics_datasets.py
-│   │   ├── etl_logistics_spatial_supabase.py
-│   │   └── migrate_logistics_to_supabase.py
-│   └── sql/
-│       ├── logistics_setup.sql
-│       ├── logistics_fk_and_gist.sql
-│       ├── logistics_spatial_indexes.sql
-│       └── logistics_cleanup.sql
-├── frontend/
-└── data/
-		├── world_airports.csv
-		├── UpdatedPub150.csv
-		├── airlines.csv
-		├── routes.csv
-		└── Shipping_Lanes_v1.geojson
+|- backend/
+|  |- app/
+|  |  |- api/v1/
+|  |  |- schemas/
+|  |  |- services/
+|  |  |- lib/
+|  |- agents/
+|  |- scripts/
+|  |- sql/
+|- frontend/
+|  |- app/
+|  |- components/pharma/
+|  |- lib/
+|- data/
+|- docs/submission/
 ```
 
----
+## 5) Data and ETL Workflow
 
-## Data Engineering Workflow
-
-### 1) Run EDA Validation
-
-The EDA script checks:
-
-- Null coordinates in airport and seaport source files
-- Latitude/longitude range violations
-- Orphaned aviation routes where source or destination IATA is not in airports
-
-Command:
+### Step A: EDA checks
 
 ```bash
-python backend/scripts/eda_logistics_datasets.py --data-dir "D:/MS/UMD/Courses/Spring-2026/Agentic-AI/jarvis-ai/data"
+python backend/scripts/eda_logistics_datasets.py --data-dir "./data"
 ```
 
-Outputs are written to:
+Expected outputs are written to `data/eda_reports/`.
 
-- data/eda_reports/eda_summary.json
-- data/eda_reports/airports_null_coordinates.csv
-- data/eda_reports/seaports_null_coordinates.csv
-- data/eda_reports/airports_invalid_coordinate_ranges.csv
-- data/eda_reports/seaports_invalid_coordinate_ranges.csv
-- data/eda_reports/routes_orphaned_iata.csv
-
-### 2) Run Spatial ETL into Supabase
-
-ETL script capabilities:
-
-- Ensures PostGIS extension is enabled
-- Loads airports and builds geography points
-- Loads seaports with mapped names and LOCODE aliases plus geography points
-- Builds aviation route geography linestrings from airport coordinates
-- Loads maritime lanes from GeoJSON as geography multilinestrings
-- Adds/validates foreign key constraints and creates GIST indexes
-
-Command:
+### Step B: Spatial ETL
 
 ```bash
-python backend/scripts/etl_logistics_spatial_supabase.py --data-dir "D:/MS/UMD/Courses/Spring-2026/Agentic-AI/jarvis-ai/data"
+python backend/scripts/etl_logistics_spatial_supabase.py --data-dir "./data"
 ```
 
-The script reads DATABASE_URL from backend/.env unless passed explicitly.
+This prepares airports/seaports/routes/maritime_lanes data and spatial indexes in Postgres/PostGIS.
 
----
+## 6) API Surface
 
-## SQL Toolbelt
+Representative endpoints (not exhaustive):
 
-Use these SQL files for setup, optimization, and rollback:
+- `POST /api/v1/strategist/plan`
+- `GET /api/v1/strategist/tickets/latest`
+- `POST /api/v1/strategist/tickets/{ticket_id}/approve`
+- `POST /api/v1/regumap/analyze-route`
+- `POST /api/v1/regumap/route-geometry`
+- `POST /api/v1/regumap/spatial-check`
+- `POST /api/v1/regumap/compliance-check`
+- `GET /api/v1/telemetry/latest`
+- `GET /api/v1/locations/active-shipments`
+- `POST /api/v1/shipments/parse-po`
+- `POST /api/v1/shipments/create`
 
-- backend/sql/logistics_setup.sql
-- backend/sql/logistics_fk_and_gist.sql
-- backend/sql/logistics_spatial_indexes.sql
-- backend/sql/logistics_cleanup.sql
+## 7) Detailed Replication Guide
 
----
+### 7.1 Prerequisites
 
-## Tech Stack
+- Python 3.11+
+- Node.js 20+
+- pnpm 9+
+- PostgreSQL with PostGIS (or Supabase Postgres)
 
-### Backend
+### 7.2 Clone and open
 
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- Python
+```bash
+git clone https://github.com/amansahu205/jarvis-ai.git
+cd jarvis-ai
+```
 
-### Data & Geospatial
+### 7.3 Backend environment
 
-- PostgreSQL (Supabase)
-- PostGIS
-- GeoPandas
-- Shapely
-- Pandas
+Create `backend/.env` with required values:
 
-### Frontend
+```env
+APP_ENV=development
+APP_NAME=JarvisAI
+DEBUG=true
+DATABASE_URL=<postgres-connection-string>
+JWT_SECRET=<secret>
+AGENT_TOKEN_SECRET=<secret>
+FRONTEND_URL=http://localhost:3000,http://127.0.0.1:3000
 
-- Next.js
-- TypeScript
-- Component-driven dashboard architecture
+# Optional integrations
+GEMINI_API_KEY=
+PINECONE_API_KEY=
+PINECONE_INDEX_NAME=jarvis-compliance
+OPENWEATHER_API_KEY=
+ANTHROPIC_API_KEY=
+ELEVENLABS_API_KEY=
+ELEVENLABS_AGENT_ID=
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+RP_PHONE_NUMBER=
+```
 
----
-
-## Quick Start
-
-### Backend
+Install and run backend:
 
 ```bash
 cd backend
-uv sync
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m venv .venv
+# Windows PowerShell
+.venv/Scripts/Activate.ps1
+pip install -U pip
+pip install -e .
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Frontend
+Notes:
+
+- App startup runs table creation and starts sentinel monitor background task.
+- Open API docs are available at `http://127.0.0.1:8000/docs` when `DEBUG=true`.
+
+### 7.4 Frontend environment
+
+Create `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+```
+
+Install and run frontend:
 
 ```bash
 cd frontend
@@ -178,42 +239,73 @@ pnpm install
 pnpm dev
 ```
 
----
+Open `http://localhost:3000`.
 
-## Visual Identity
+### 7.5 Optional: data preparation flow
 
-<p align="center">
-	<img src="https://capsule-render.vercel.app/api?type=rect&color=0:1E293B,40:0EA5E9,70:10B981,100:1E293B&height=55&section=header&text=Mission-Critical%20Dark-Ops%20UI%20for%20Cold-Chain%20Intelligence&fontSize=18&fontColor=E6EDF3&animation=fadeIn" />
-</p>
+From repository root:
 
-This project is designed for command-center workflows:
+```bash
+python backend/scripts/eda_logistics_datasets.py --data-dir "./data"
+python backend/scripts/etl_logistics_spatial_supabase.py --data-dir "./data"
+```
 
-- Fast signal-to-decision UX
-- High-contrast, role-specific views
-- Geospatial-first compliance context
+### 7.6 Smoke test flow
 
----
+1. Start backend and frontend.
+2. Go to ReguMap page.
+3. Select origin and destination.
+4. Click analyze route.
+5. Confirm:
+   - route options appear
+   - compliance timeline populates
+   - map shows selected path + alternate arcs
+   - weather badge appears when OpenWeather key is configured
+
+## 8) Demo Walkthrough
+
+A concise live demo sequence:
+
+1. Show planner inputs (origin, destination, transit mode, cargo).
+2. Run analysis and display ranked route options.
+3. Switch between route options and show map updates.
+4. Open compliance timeline and cite jurisdiction cards.
+5. Show risk and weather-informed route signal.
+
+## 9) Remaining Work and Known Issues
+
+### Remaining work
+
+- Improve multi-hop realism by returning richer intermediate waypoint coordinates from backend pathfinding.
+- Expand compliance knowledge coverage beyond fallback rules for more country classes.
+- Add comprehensive automated tests for strategist/regumap integration paths.
+- Add production-grade observability dashboards and health probes.
+- Finalize and harden crisis approval workflow end-to-end with audit replay.
+
+### Known issues observed
+
+- Frontend TypeScript has existing errors in non-ReguMap three.js related components (`mobile-blocker`, `three-background`) and one map-container typing issue.
+- Browser console can show React root unmount race warnings in map marker lifecycle during fast re-renders.
+- Some shipment queries may fail against certain live schemas if expected legacy columns are missing in deployed DB variants.
+- Graph rebuild command currently fails in this environment when `graphify` module is unavailable.
+
+## 10) Submission Package
+
+Submission support docs are available in `docs/submission/`:
+
+- `SUBMISSION_METADATA.md`
+- `INITIAL_SOLUTION_PACKAGE_CHECKLIST.md`
+- `REPRODUCIBILITY_AND_USAGE_DRAFT.md`
+- `DEMO_VIDEO_SHOTLIST.md`
+- `SUPPORTING_FILES_INDEX.md`
+
+Recommended submission flow:
+
+1. Fill `SUBMISSION_METADATA.md`.
+2. Export reproducibility document to PDF (max 5 pages).
+3. Upload demo video (max 5 minutes) and verify public access in incognito mode.
+4. Attach optional supporting files links.
 
 ## License
 
 Academic project for UMD Agentic AI Challenge 2026.
-
-
----
-
-## Submission Package
-
-This repository includes a structured initial solution package in docs/submission.
-
-- Submission metadata and links: docs/submission/SUBMISSION_METADATA.md
-- Submission checklist: docs/submission/INITIAL_SOLUTION_PACKAGE_CHECKLIST.md
-- Reproducibility and usage draft: docs/submission/REPRODUCIBILITY_AND_USAGE_DRAFT.md
-- Demo video shot list: docs/submission/DEMO_VIDEO_SHOTLIST.md
-- Supporting files index: docs/submission/SUPPORTING_FILES_INDEX.md
-
-Recommended flow:
-
-1. Fill in docs/submission/SUBMISSION_METADATA.md
-2. Finalize the reproducibility document and export to PDF (max 5 pages)
-3. Upload demo video (max 5 minutes) and verify link access in incognito mode
-4. Add all final links back into the metadata and supporting index
