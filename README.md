@@ -198,3 +198,22 @@ This project is designed for command-center workflows:
 
 Academic project for UMD Agentic AI Challenge 2026.
 
+
+---
+
+## Submission Package
+
+This repository includes a structured initial solution package in docs/submission.
+
+- Submission metadata and links: docs/submission/SUBMISSION_METADATA.md
+- Submission checklist: docs/submission/INITIAL_SOLUTION_PACKAGE_CHECKLIST.md
+- Reproducibility and usage draft: docs/submission/REPRODUCIBILITY_AND_USAGE_DRAFT.md
+- Demo video shot list: docs/submission/DEMO_VIDEO_SHOTLIST.md
+- Supporting files index: docs/submission/SUPPORTING_FILES_INDEX.md
+
+Recommended flow:
+
+1. Fill in docs/submission/SUBMISSION_METADATA.md
+2. Finalize the reproducibility document and export to PDF (max 5 pages)
+3. Upload demo video (max 5 minutes) and verify link access in incognito mode
+4. Add all final links back into the metadata and supporting index
