@@ -74,63 +74,9 @@ interface DashboardProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOCK DATA
 // ─────────────────────────────────────────────────────────────────────────────
-
-const MOCK_STATS = {
-  activeShipments: 12,
-  criticalAlerts: 2,
-  pendingApprovals: 5,
-  onTimeRate: 94.2,
-  totalValue: 2840000,
-}
-
-const INITIAL_ACTIVE_SHIPMENTS: ActiveShipment[] = [
-  {
-    id: "1",
-    shipmentId: "SHP-2026-0441",
-    origin: "JFK",
-    destination: "LHR",
-    status: "CRITICAL",
-    currentTemp: "7.4°C",
-    eta: "9h 42m",
-    transitMode: "air",
-    cargo: "Moderna COVID-19 Vaccine",
-  },
-  {
-    id: "2",
-    shipmentId: "SHP-2026-0438",
-    origin: "LAX",
-    destination: "NRT",
-    status: "WARNING",
-    currentTemp: "5.1°C",
-    eta: "14h 20m",
-    transitMode: "air",
-    cargo: "Pfizer mRNA Therapeutic",
-  },
-  {
-    id: "3",
-    shipmentId: "SHP-2026-0435",
-    origin: "Rotterdam",
-    destination: "Singapore",
-    status: "NORMAL",
-    currentTemp: "4.2°C",
-    eta: "6d 12h",
-    transitMode: "maritime",
-    cargo: "Insulin Bulk Shipment",
-  },
-  {
-    id: "4",
-    shipmentId: "SHP-2026-0432",
-    origin: "Frankfurt",
-    destination: "Dubai",
-    status: "NORMAL",
-    currentTemp: "3.8°C",
-    eta: "2d 4h",
-    transitMode: "ground",
-    cargo: "Biologics - Humira",
-  },
-]
+// DASHBOARD COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DASHBOARD COMPONENT
@@ -141,7 +87,7 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
   const [leftPanelTab, setLeftPanelTab] = useState<"import" | "manual">("import")
   const [dashboardState, setDashboardState] = useState<"idle" | "parsing" | "verifying" | "active">("idle")
   const [parsedShipment, setParsedShipment] = useState<any | null>(null)
-  const [activeShipments, setActiveShipments] = useState<ActiveShipment[]>(INITIAL_ACTIVE_SHIPMENTS)
+  const [activeShipments, setActiveShipments] = useState<ActiveShipment[]>([])
   const [routeAnalyzerData, setRouteAnalyzerData] = useState({
     origin: "",
     destination: "",
@@ -181,9 +127,9 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
           transitMode: shipment.transitMode,
           cargo: shipment.cargo,
         }))
-        setActiveShipments(mapped.length ? mapped : INITIAL_ACTIVE_SHIPMENTS)
+        setActiveShipments(mapped)
       })
-      .catch(() => setActiveShipments(INITIAL_ACTIVE_SHIPMENTS))
+      .catch(() => setActiveShipments([]))
     return () => {
       cancelled = true
     }
@@ -248,6 +194,14 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
     }
   }
 
+  const activeShipmentCount = activeShipments.length
+  const criticalShipmentCount = activeShipments.filter((shipment) => shipment.status === "CRITICAL").length
+  const pendingApprovalCount = parsedShipment ? 1 : 0
+  const onTimeShipmentCount = activeShipments.filter(
+    (shipment) => shipment.status === "NORMAL" || shipment.status === "DELIVERED"
+  ).length
+  const onTimeRate = activeShipmentCount ? Math.round((onTimeShipmentCount / activeShipmentCount) * 100) : 0
+
   return (
     <div
       className="relative w-full h-screen overflow-hidden flex flex-col"
@@ -283,32 +237,32 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
           <StatChip
             icon={<Package size={14} />}
             label="Active"
-            value={MOCK_STATS.activeShipments.toString()}
+            value={activeShipmentCount.toString()}
             color="#58A6FF"
           />
           <StatChip
             icon={<AlertTriangle size={14} />}
             label="Critical"
-            value={MOCK_STATS.criticalAlerts.toString()}
+            value={criticalShipmentCount.toString()}
             color="#FF4444"
             pulse
           />
           <StatChip
             icon={<Clock size={14} />}
             label="Pending"
-            value={MOCK_STATS.pendingApprovals.toString()}
+            value={pendingApprovalCount.toString()}
             color="#F0A500"
           />
           <StatChip
             icon={<CheckCircle2 size={14} />}
             label="On-Time"
-            value={`${MOCK_STATS.onTimeRate}%`}
+            value={activeShipmentCount ? `${onTimeRate}%` : '—'}
             color="#1ECC8B"
           />
           <StatChip
             icon={<DollarSign size={14} />}
             label="In Transit"
-            value={`$${(MOCK_STATS.totalValue / 1000000).toFixed(1)}M`}
+            value={activeShipmentCount ? `${onTimeRate}%` : '—'}
             color="#58A6FF"
           />
         </div>

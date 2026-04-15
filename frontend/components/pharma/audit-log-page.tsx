@@ -18,87 +18,16 @@ interface AuditEvent {
   isHighlighted?: boolean
 }
 
-const mockAuditEvents: AuditEvent[] = [
-  {
-    id: "1",
-    timestamp: "02:12:34",
-    eventType: "ANOMALY_DETECTED",
-    actor: "Sentinel Agent",
-    shipment: "SHP-2026-0441",
-    details: "CRITICAL_L1 · Temp 6.8°C · +0.5°C/hr",
-  },
-  {
-    id: "2",
-    timestamp: "02:12:47",
-    eventType: "STRATEGIST_RUNNING",
-    actor: "Strategist Agent",
-    shipment: "SHP-2026-0441",
-    details: "Evaluating 3 candidate reroutes...",
-  },
-  {
-    id: "3",
-    timestamp: "02:13:02",
-    eventType: "DIPLOMAT_RUNNING",
-    actor: "Diplomat Agent",
-    shipment: "SHP-2026-0441",
-    details: "Drafting 3 communication artifacts...",
-  },
-  {
-    id: "4",
-    timestamp: "02:14:00",
-    eventType: "CALL_DELIVERED",
-    actor: "ElevenLabs Voice Agent",
-    shipment: "SHP-2026-0441",
-    details: "Call to Dr. Aris · Duration 1m 24s",
-    actionLink: "#",
-    actionLabel: "Transcript",
-  },
-  {
-    id: "5",
-    timestamp: "02:14:15",
-    eventType: "PENDING_APPROVAL",
-    actor: "Compliance Cop",
-    shipment: "SHP-2026-0441",
-    details: "Crisis Ticket #TKT-2026-0441 · Awaiting RP",
-  },
-  {
-    id: "6",
-    timestamp: "02:18:42",
-    eventType: "RP_APPROVED",
-    actor: "Dr. Aris Papadopoulos",
-    actorRole: "RP",
-    shipment: "SHP-2026-0441",
-    details: "Option 1 · Port Said Diversion · Regulations: EDA-442, WHO-TRS-961",
-    actionLink: "#",
-    actionLabel: "View",
-    isHighlighted: true,
-  },
-  {
-    id: "7",
-    timestamp: "02:18:45",
-    eventType: "CASCADE_COMPLETE",
-    actor: "System",
-    shipment: "SHP-2026-0441",
-    details: "Hospital email sent · ERP updated · Insurance filed",
-  },
-  {
-    id: "8",
-    timestamp: "02:22:10",
-    eventType: "AUDIT_EXPORT",
-    actor: "Dr. Aris Papadopoulos",
-    shipment: "SHP-2026-0441",
-    details: "PDF audit export generated",
-  },
-]
+const auditEvents: AuditEvent[] = []
 
 const columns = ["TIMESTAMP", "EVENT TYPE", "ACTOR", "SHIPMENT", "DETAILS", "ACTIONS"]
 
 export function AuditLogPage() {
-  const [shipmentFilter, setShipmentFilter] = useState("SHP-2026-0441")
+  const [shipmentFilter, setShipmentFilter] = useState("")
   const [eventTypeFilter, setEventTypeFilter] = useState<string>("")
-  const [dateFilter, setDateFilter] = useState("Apr 11, 2026")
+  const [dateFilter, setDateFilter] = useState("")
 
-  const filteredEvents = mockAuditEvents.filter((event) => {
+  const filteredEvents = auditEvents.filter((event) => {
     if (shipmentFilter && !event.shipment.toLowerCase().includes(shipmentFilter.toLowerCase())) {
       return false
     }
@@ -294,7 +223,7 @@ export function AuditLogPage() {
             visible: { transition: { staggerChildren: 0.04 } },
           }}
         >
-          {filteredEvents.map((event) => (
+          {filteredEvents.length ? filteredEvents.map((event) => (
             <motion.div
               key={event.id}
               variants={{
@@ -371,7 +300,11 @@ export function AuditLogPage() {
                 )}
               </div>
             </motion.div>
-          ))}
+          )) : (
+            <div className="px-5 py-16 text-center" style={{ color: "#8B949E", fontFamily: "Inter, sans-serif" }}>
+              No audit records are loaded yet. Connect the live audit feed to populate this ledger.
+            </div>
+          )}
         </motion.div>
 
         {/* Footer */}

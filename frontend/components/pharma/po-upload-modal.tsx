@@ -46,21 +46,21 @@ const loadingMessages = [
   'Validating regulatory fields...',
 ]
 
-const MOCK_PARSED_SHIPMENT: ParsedShipment = {
-  shipmentId: 'SHP-2026-001847',
-  origin: 'JFK - New York',
-  destination: 'LHR - London',
-  cargoType: 'vaccine',
-  medicationName: 'Moderna COVID-19 Vaccine',
-  quantity: 5000,
-  batchNumber: 'BATCH-2026-A123',
-  lotNumber: 'LOT-5847-B',
-  weight_kg: 125.5,
-  tempMinC: 2,
-  tempMaxC: 8,
-  estimatedDeparture: '2026-04-15T14:00:00Z',
-  consignee: 'NHS Distribution Centre',
-  notes: 'Priority handling - temperature critical',
+const EMPTY_PARSED_SHIPMENT: ParsedShipment = {
+  shipmentId: '',
+  origin: '',
+  destination: '',
+  cargoType: '',
+  medicationName: '',
+  quantity: 0,
+  batchNumber: '',
+  lotNumber: '',
+  weight_kg: 0,
+  tempMinC: 0,
+  tempMaxC: 0,
+  estimatedDeparture: '',
+  consignee: '',
+  notes: '',
 }
 
 export default function POUploadModal({
@@ -73,8 +73,8 @@ export default function POUploadModal({
   const [pasteMode, setPasteMode] = useState(false)
   const [pasteText, setPasteText] = useState('')
   const [loadingStep, setLoadingStep] = useState(0)
-  const [parsedData, setParsedData] = useState<ParsedShipment>(MOCK_PARSED_SHIPMENT)
-  const [formData, setFormData] = useState<ParsedShipment>(MOCK_PARSED_SHIPMENT)
+  const [parsedData, setParsedData] = useState<ParsedShipment>(EMPTY_PARSED_SHIPMENT)
+  const [formData, setFormData] = useState<ParsedShipment>(EMPTY_PARSED_SHIPMENT)
   const [confirmationState, setConfirmationState] = useState<'editing' | 'creating' | 'success'>(
     'editing'
   )
@@ -90,14 +90,12 @@ export default function POUploadModal({
     return () => clearInterval(interval)
   }, [state])
 
-  // Simulate parsing
+  // Simulate parsing without fabricating shipment content
   useEffect(() => {
     if (state !== 'parsing') return
     const timer = setTimeout(() => {
-      setParsedData(MOCK_PARSED_SHIPMENT)
-      setFormData(MOCK_PARSED_SHIPMENT)
       setState('confirmation')
-    }, 3000)
+    }, 1200)
     return () => clearTimeout(timer)
   }, [state])
 
@@ -156,10 +154,9 @@ export default function POUploadModal({
 
   const handleCreateShipment = async () => {
     setConfirmationState('creating')
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 1500))
+    await new Promise((r) => setTimeout(r, 400))
     setConfirmationState('success')
-    await new Promise((r) => setTimeout(r, 1500))
+    await new Promise((r) => setTimeout(r, 400))
     onShipmentCreated(formData)
     handleClose()
   }
@@ -677,7 +674,7 @@ export default function POUploadModal({
                         {confirmationState === 'success' && (
                           <>
                             <CheckCircle2 size={16} />
-                            Shipment SHP-2026-001847 created
+                            Shipment created
                           </>
                         )}
                       </motion.button>
