@@ -40,10 +40,12 @@ DDL_SQL = [
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-
+    """,
+    """
     ALTER TABLE public.shipments
         ADD COLUMN IF NOT EXISTS safe_humidity_min NUMERIC NOT NULL DEFAULT 35;
-
+    """,
+    """
     ALTER TABLE public.shipments
         ADD COLUMN IF NOT EXISTS safe_humidity_max NUMERIC NOT NULL DEFAULT 60;
     """,
