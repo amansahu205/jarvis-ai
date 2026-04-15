@@ -73,3 +73,17 @@ class ComplianceCheckRequest(BaseModel):
 class ComplianceCheckResponse(BaseModel):
     jurisdictions: list[JurisdictionCompliance]
     overall_status: str               # PASS | FLAG | BLOCK
+
+
+# ─── Geometry fetch ──────────────────────────────────────────────────────────
+
+class RouteGeometryRequest(BaseModel):
+    origin: str
+    destination: str
+    transit_mode: str
+    waypoints: list[list[float]] = []
+
+
+class RouteGeometryResponse(BaseModel):
+    source: str
+    geometry: dict

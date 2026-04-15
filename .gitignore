@@ -11,6 +11,17 @@
 !.env.test
 
 
+# ─── Dotfiles (default ignore) ───────────────────────────────
+.*
+!.gitignore
+!.gitattributes
+!.github/
+!.github/**
+!.env.example
+!.env.test
+!backend/.env.example
+
+
 # ─── Python ──────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
@@ -146,6 +157,16 @@ CLAUDE.md
 
 # Agent runner
 .agent/
+
+# Other local AI tooling (explicit for readability)
+.crush/
+.cursor/
+.aider/
+.roo/
+
+# Skill package artifacts
+.agents/skills/
+**/SKILL.md
 
 # Graphify (auto-generated knowledge graph — regenerate with `graphify`)
 graphify-out/

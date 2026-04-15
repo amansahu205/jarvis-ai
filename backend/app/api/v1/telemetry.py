@@ -9,7 +9,11 @@ from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.telemetry import TelemetryReading
 from app.schemas.base import SuccessResponse
-from app.schemas.telemetry import TelemetryIngestRequest, TelemetryIngestResponse
+from app.schemas.telemetry import (
+    TelemetryIngestRequest,
+    TelemetryIngestResponse,
+    TelemetryLatestResponse,
+)
 
 router = APIRouter()
 
@@ -32,8 +36,8 @@ async def _excursion_duration(
         .order_by(TelemetryReading.recorded_at.desc())
         .limit(1)
     )
-    result = await session.exec(stmt)
-    prior = result.first()
+    result = await session.execute(stmt)
+    prior = result.scalars().first()
     if prior is None:
         return 0
     delta = current_recorded_at - prior.recorded_at
@@ -110,5 +114,40 @@ async def ingest_telemetry(
             excursion_duration_seconds=reading.excursion_duration_seconds,
             status=reading.status,
             received_at=reading.received_at,
+        )
+    )
+
+
+@router.get("/latest", status_code=200)
+async def latest_telemetry(
+    session: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+) -> SuccessResponse[TelemetryLatestResponse]:
+    stmt = select(TelemetryReading).order_by(TelemetryReading.recorded_at.desc()).limit(1)
+    result = await session.execute(stmt)
+    latest = result.scalars().first()
+
+    if latest is None:
+        return SuccessResponse(
+            data=TelemetryLatestResponse(
+                reading_id="",
+                shipment_id="",
+                temp_c=0.0,
+                temp_excursion=False,
+                alert_flag=False,
+                status="NORMAL",
+                recorded_at=datetime.utcnow(),
+            )
+        )
+
+    return SuccessResponse(
+        data=TelemetryLatestResponse(
+            reading_id=latest.reading_id,
+            shipment_id=latest.shipment_id,
+            temp_c=latest.temp_c,
+            temp_excursion=latest.temp_excursion,
+            alert_flag=latest.alert_flag,
+            status=latest.status,
+            recorded_at=latest.recorded_at,
         )
     )

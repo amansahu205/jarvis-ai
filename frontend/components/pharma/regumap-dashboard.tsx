@@ -1,8 +1,16 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useRef } from 'react'
-import { analyzeRoute, spatialCheck, complianceCheck, ApiError } from '@/lib/api'
+import { useEffect, useState, useRef } from 'react'
+import { LocationSearch, type LocationResult } from '@/components/LocationSearch'
+import {
+  analyzeRoute,
+  spatialCheck,
+  complianceCheck,
+  fetchRouteGeometry,
+  getLatestTelemetry,
+  ApiError,
+} from '@/lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin,
@@ -85,8 +93,8 @@ const complianceCards: ComplianceCard[] = [
 ]
 
 export function ReguMapDashboard() {
-  const [origin, setOrigin] = useState('BOM — Chhatrapati Shivaji, Mumbai')
-  const [destination, setDestination] = useState('JFK — John F. Kennedy, New York')
+  const [origin, setOrigin] = useState({ code: 'BOM', label: 'BOM — Chhatrapati Shivaji, Mumbai' })
+  const [destination, setDestination] = useState({ code: 'JFK', label: 'JFK — John F. Kennedy, New York' })
   const [transitMode, setTransitMode] = useState<'air' | 'maritime'>('maritime')
   const [cargoType, setCargoType] = useState('vaccine')
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'complete'>('idle')
@@ -97,10 +105,34 @@ export function ReguMapDashboard() {
   const [riskCounts, setRiskCounts] = useState({ pass: 3, flag: 1, block: 0 })
   const [routeLabel, setRouteLabel] = useState('BOM → JFK · Maritime · ~22.4h · Suez Canal route')
   const [apiWaypoints, setApiWaypoints] = useState<[number, number][]>([])
+  const [routeGeometry, setRouteGeometry] = useState<GeoJSON.Geometry | null>(null)
+  const [isCrisis, setIsCrisis] = useState(false)
   const [analyzeError, setAnalyzeError] = useState<string | null>(null)
 
-  // Extract IATA/LOCODE code from display strings like "BOM — Chhatrapati Shivaji, Mumbai"
-  const parseCode = (s: string) => s.trim().split(/[\s\u2014\-]/)[0].toUpperCase()
+  useEffect(() => {
+    let cancelled = false
+
+    const refreshTelemetry = async () => {
+      try {
+        const latest = await getLatestTelemetry()
+        if (cancelled) return
+        const crisis = latest.temp_excursion || latest.alert_flag || latest.status === 'ALERT'
+        setIsCrisis(crisis)
+      } catch {
+        if (!cancelled) setIsCrisis(false)
+      }
+    }
+
+    void refreshTelemetry()
+    const interval = setInterval(() => {
+      void refreshTelemetry()
+    }, 15000)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
 
   const handleSwap = () => {
     const temp = origin
@@ -112,11 +144,19 @@ export function ReguMapDashboard() {
     setAnalysisState('loading')
     setAnalyzeError(null)
     try {
-      const originCode = parseCode(origin)
-      const destCode = parseCode(destination)
+      const originCode = origin.code
+      const destCode = destination.code
 
       const route = await analyzeRoute(originCode, destCode, transitMode, cargoType)
       setApiWaypoints(route.waypoints)
+
+      const geometry = await fetchRouteGeometry({
+        origin: originCode,
+        destination: destCode,
+        transit_mode: transitMode,
+        waypoints: route.waypoints,
+      })
+      setRouteGeometry(geometry.geometry)
 
       const spatial = await spatialCheck(originCode, destCode, transitMode, route.waypoints)
       const compliance = await complianceCheck(spatial.jurisdictions)
@@ -149,6 +189,7 @@ export function ReguMapDashboard() {
       setAnalysisState('complete')
     } catch (err) {
       setAnalyzeError(err instanceof ApiError ? err.message : 'Analysis failed. Is the backend running?')
+      setRouteGeometry(null)
       setAnalysisState('idle')
     }
   }
@@ -161,7 +202,12 @@ export function ReguMapDashboard() {
     <div className="relative w-full h-screen overflow-hidden" style={{ background: '#080B0F' }}>
       {/* Map */}
       <div className="w-full h-screen">
-        <MapComponent waypoints={apiWaypoints} />
+        <MapComponent
+          waypoints={apiWaypoints}
+          routeGeometry={routeGeometry}
+          transitMode={transitMode}
+          isCrisis={isCrisis}
+        />
       </div>
 
       {/* Route Planner Panel (Top Left) */}
@@ -226,19 +272,20 @@ export function ReguMapDashboard() {
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ background: transitMode === 'maritime' ? '#1ECC8B' : '#58A6FF' }}
             />
-            <input
-              type="text"
-              value={origin}
-              onChange={(e) => setOrigin(e.target.value)}
-              placeholder="IATA · LOCODE · City, Country"
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-mono"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#E6EDF3',
-                backdropFilter: 'blur(8px)',
-              }}
-            />
+            <div className="flex-1">
+              <LocationSearch
+                mode={transitMode === 'maritime' ? 'maritime' : 'air'}
+                defaultValue={origin.label}
+                onSelect={(loc: LocationResult) =>
+                  setOrigin({ code: loc.code, label: `${loc.code} — ${loc.label}` })
+                }
+                inputStyle={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -264,19 +311,20 @@ export function ReguMapDashboard() {
           </label>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: '#1ECC8B' }} />
-            <input
-              type="text"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="IATA · LOCODE · City, Country"
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-mono"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#E6EDF3',
-                backdropFilter: 'blur(8px)',
-              }}
-            />
+            <div className="flex-1">
+              <LocationSearch
+                mode={transitMode === 'maritime' ? 'maritime' : 'air'}
+                defaultValue={destination.label}
+                onSelect={(loc: LocationResult) =>
+                  setDestination({ code: loc.code, label: `${loc.code} — ${loc.label}` })
+                }
+                inputStyle={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                }}
+              />
+            </div>
           </div>
         </div>
 

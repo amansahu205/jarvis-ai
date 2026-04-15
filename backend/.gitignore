@@ -1,31 +1,68 @@
-# Backend-specific ignores (root .gitignore handles the rest)
+# Backend-specific ignores (root .gitignore handles monorepo-wide rules)
 
-# Environment
+# Environment and secrets
 .env
 .env.*
 !.env.example
 
-# Virtual environment
-.venv/
+# Dotfiles (default ignore)
+.*
+!.gitignore
+!.env.example
 
-# Python cache
+# Python virtual environments
+.venv/
+venv/
+
+# Python bytecode and build artifacts
 __pycache__/
 *.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+build/
+dist/
 
 # Tooling caches
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+.pytype/
 
 # Coverage
 .coverage
+.coverage.*
 htmlcov/
+coverage.xml
+
+# Runtime logs and temp artifacts
+*.log
+logs/
+*.pid
+tmp/
+temp/
+
+# Geospatial and data engineering local artifacts
+*.gpkg
+*.geojson.tmp
+*.parquet
+*.feather
 
 # Project-specific large assets
 data/regulatory_docs/
 
 # Supabase local dev
 .supabase/
+
+# Other local AI tooling (explicit for readability)
+.agent/
+.crush/
+.cursor/
+.aider/
+.roo/
+
+# Skill docs/artifacts
+**/SKILL.md
 
 # Node (Supabase JS client)
 node_modules/

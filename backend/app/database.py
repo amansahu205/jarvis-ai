@@ -2,6 +2,7 @@ import ssl
 import socket
 import asyncpg
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy import text
 from sqlmodel import SQLModel
 from app.config import settings
 
@@ -51,6 +52,8 @@ def _build_engine():
         echo=settings.DEBUG,
         pool_size=5,
         max_overflow=10,
+        pool_pre_ping=True,
+        pool_recycle=300,
     )
     return engine
 
@@ -70,5 +73,11 @@ async def get_db():
 
 
 async def create_tables():
+    # Guard against accidental recreation of legacy SQLModel default table name.
+    legacy = SQLModel.metadata.tables.get("telemetryreading")
+    if legacy is not None:
+        SQLModel.metadata.remove(legacy)
+
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+        await conn.execute(text("DROP TABLE IF EXISTS public.telemetryreading"))

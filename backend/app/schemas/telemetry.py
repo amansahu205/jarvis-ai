@@ -61,3 +61,13 @@ class TelemetryIngestResponse(BaseModel):
     excursion_duration_seconds: int
     status: str
     received_at: datetime
+
+
+class TelemetryLatestResponse(BaseModel):
+    reading_id: str
+    shipment_id: str
+    temp_c: float
+    temp_excursion: bool
+    alert_flag: bool
+    status: str
+    recorded_at: datetime

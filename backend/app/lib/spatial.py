@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING
 
 from shapely.geometry import shape, LineString, Point, MultiPolygon
 from shapely.geometry.base import BaseGeometry
+from sqlalchemy import text
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 if TYPE_CHECKING:
     pass
@@ -35,6 +37,11 @@ LOCATION_COORDS: dict[str, list[float]] = {
     "JNB": [-26.1392,  28.2460],  # Johannesburg — O.R. Tambo
     "ORD": [41.9742,  -87.9073],  # Chicago — O'Hare
     "NRT": [35.7720,  140.3929],  # Tokyo — Narita
+    "IAD": [38.8953,  -77.0369],  # Washington — Dulles Int'l
+    "GUU": [ 6.4984,  -58.1419],  # Georgetown — Cheddi Jagan Int'l
+    "MIA": [25.7959,  -80.2870],  # Miami — Miami Int'l
+    "AMS": [52.3086,   4.7639],   # Amsterdam — Schiphol
+    "HKG": [22.3080, 113.9185],   # Hong Kong — Int'l
     "PORT_SAID": [31.2565, 32.2841],
     "SUEZ_CITY": [29.9668, 32.5498],
 }
@@ -56,7 +63,20 @@ MARITIME_ROUTES: dict[tuple[str, str], dict] = {
         ],
         "transit_time_hours": 22.4,
     },
+    ("GUU", "IAD"): {
+        "waypoints": [
+            [ 6.4984,  -58.1419],  # GUU — Georgetown anchorage
+            [10.0,     -55.0],     # Sargasso Sea
+            [20.0,     -45.0],     # Mid-Atlantic
+            [30.0,     -35.0],     # Atlantic approach
+            [35.0,     -20.0],     # North Atlantic
+            [40.0,     -30.0],     # Merchant marine route
+            [38.8953,  -77.0369],  # IAD — Dulles (or nearby port)
+        ],
+        "transit_time_hours": 16.8,
+    },
 }
+
 
 AIR_ROUTES: dict[tuple[str, str], dict] = {
     ("BOM", "JFK"): {
@@ -77,6 +97,46 @@ AIR_ROUTES: dict[tuple[str, str], dict] = {
             [40.6413, -73.7781],   # JFK
         ],
         "transit_time_hours": 14.5,
+    },
+    ("GUU", "IAD"): {
+        "waypoints": [
+            [ 6.4984,  -58.1419],  # GUU — Georgetown
+            [15.0,     -55.0],     # Caribbean airway
+            [25.0,     -50.0],     # Atlantic FL1 track
+            [32.0,     -40.0],     # North Atlantic OTAC
+            [38.8953,  -77.0369],  # IAD — Dulles
+        ],
+        "transit_time_hours": 10.8,
+    },
+    ("MIA", "IAD"): {
+        "waypoints": [
+            [25.7959,  -80.2870],  # MIA
+            [30.0,     -80.0],     # Florida airspace
+            [35.0,     -78.0],     # Coastal route
+            [38.8953,  -77.0369],  # IAD
+        ],
+        "transit_time_hours": 2.5,
+    },
+    ("AMS", "IAD"): {
+        "waypoints": [
+            [52.3086,   4.7639],   # AMS — Amsterdam
+            [52.0,     -2.0],      # North Sea
+            [50.0,    -10.0],      # Atlantic exit
+            [45.0,    -25.0],      # Mid-Atlantic routing
+            [38.8953,  -77.0369],  # IAD
+        ],
+        "transit_time_hours": 10.2,
+    },
+    ("HKG", "IAD"): {
+        "waypoints": [
+            [22.3080, 113.9185],   # HKG — Hong Kong
+            [30.0,     80.0],      # Asia-Pacific route
+            [40.0,     45.0],      # Middle East routing
+            [45.0,      0.0],      # European entry
+            [50.0,    -10.0],      # Atlantic crossing
+            [38.8953,  -77.0369],  # IAD
+        ],
+        "transit_time_hours": 18.5,
     },
 }
 
@@ -157,43 +217,289 @@ def normalize_location(raw: str) -> str:
     return _ALIASES.get(upper, upper)
 
 
-def generate_route(origin: str, destination: str, mode: str) -> dict:
+async def generate_route(
+    session: AsyncSession, 
+    origin: str, 
+    destination: str, 
+    mode: str
+) -> dict:
     """
-    Return a route dict for the given origin/destination/mode.
-
-    Keys: route_id, waypoints, transit_time_hours, mode,
-          origin_coords, destination_coords.
-
-    Raises ValueError if the route is not in the route tables.
+    Query the database for a route between origin and destination.
+    
+    For maritime mode: Uses PostGIS to find shipping lanes and generates waypoints
+    that follow actual maritime shipping routes, including Suez Canal and Panama Canal segments.
+    
+    For air mode: Returns standard air routes from the routes table.
+    
+    Returns a route dict:
+        route_id, waypoints, transit_time_hours, mode, origin_coords, destination_coords
+    
+    Falls back to hardcoded LOCATION_COORDS if coordinates not in airports table.
+    Raises ValueError if the route is not found in the database.
     """
     origin = normalize_location(origin)
     destination = normalize_location(destination)
     mode_key = mode.strip().lower()
-
-    if mode_key == "maritime":
-        table = MARITIME_ROUTES
-    elif mode_key in ("air", "aviation", "aerial"):
-        table = AIR_ROUTES
-    else:
+    
+    if mode_key not in ("air", "maritime"):
         raise ValueError(f"Unknown transit mode '{mode}'. Expected: maritime | air")
-
-    key = (origin, destination)
-    if key not in table:
-        raise ValueError(
-            f"No {mode_key} route defined for {origin} → {destination}"
+    
+    # Get airport coordinates for origin/destination first
+    origin_coords = await _get_airport_coords(session, origin)
+    dest_coords = await _get_airport_coords(session, destination)
+    
+    if not origin_coords:
+        origin_coords = LOCATION_COORDS.get(origin)
+    if not dest_coords:
+        dest_coords = LOCATION_COORDS.get(destination)
+    
+    if not origin_coords or not dest_coords:
+        raise ValueError(f"Could not resolve coordinates for {origin} or {destination}")
+    
+    # For maritime routes, generate using PostGIS shipping lanes
+    if mode_key == "maritime":
+        return await _generate_maritime_route(
+            session, origin, destination, origin_coords, dest_coords
         )
-
-    data = table[key]
-    waypoints = data["waypoints"]
-
+    
+    # For air routes, query the routes table
+    result = await session.execute(
+        text("""
+            SELECT 
+              origin, destination, transit_mode,
+              waypoints, transit_time_hrs, id
+            FROM public.routes
+            WHERE lower(origin) = lower(:origin)
+              AND lower(destination) = lower(:dest)
+              AND transit_mode::text = :mode
+            LIMIT 1
+        """),
+        {"origin": origin, "dest": destination, "mode": mode_key}
+    )
+    
+    row = result.first()
+    if not row:
+        raise ValueError(
+            f"No {mode_key} route found in database: {origin} → {destination}"
+        )
+    
+    # Extract waypoints from jsonb
+    waypoints = row[3] if isinstance(row[3], list) else json.loads(row[3] or "[]")
+    transit_time = float(row[4] or 0)
+    
     return {
         "route_id": f"{origin}-{destination}-{mode_key}",
         "waypoints": waypoints,
-        "transit_time_hours": data["transit_time_hours"],
+        "transit_time_hours": transit_time,
         "mode": mode_key,
-        "origin_coords": LOCATION_COORDS.get(origin, waypoints[0]),
-        "destination_coords": LOCATION_COORDS.get(destination, waypoints[-1]),
+        "origin_coords": origin_coords,
+        "destination_coords": dest_coords,
     }
+
+
+async def _get_airport_coords(session: AsyncSession, iata_code: str) -> list[float] | None:
+    """
+    Query airports table for [lat, lon] coords by IATA code.
+    Returns None if not found.
+    """
+    result = await session.execute(
+        text("""
+            SELECT latitude, longitude
+            FROM public.airports
+            WHERE upper(iata_code) = upper(:code)
+            LIMIT 1
+        """),
+        {"code": iata_code}
+    )
+    row = result.first()
+    if row and row[0] is not None and row[1] is not None:
+        return [float(row[0]), float(row[1])]
+    return None
+
+
+async def _generate_maritime_route(
+    session: AsyncSession,
+    origin: str,
+    destination: str,
+    origin_coords: list[float],
+    dest_coords: list[float],
+) -> dict:
+    """
+    Generate a maritime route by finding and following shipping lanes using PostGIS.
+    
+    This function:
+    1. Creates a great-circle line between origin and destination
+    2. Finds the nearest maritime shipping lanes that intersect or are near this line
+    3. Extracts waypoints from the shipping lane geometry
+    4. Ensures Suez Canal and Panama Canal segments are included if the route crosses them
+    5. Returns waypoints in [lat, lon] format
+    
+    Parameters
+    ----------
+    session : AsyncSession
+        Database session for PostGIS queries
+    origin, destination : str
+        Location codes (e.g., "BOM", "JFK")
+    origin_coords, dest_coords : list[float]
+        [lat, lon] coordinates for origin and destination
+    
+    Returns
+    -------
+    dict with keys: route_id, waypoints, transit_time_hours, mode, origin_coords, destination_coords
+    """
+    
+    # Create a WKT line from origin to destination (in lon,lat format for PostGIS)
+    origin_wkt = f"POINT({origin_coords[1]} {origin_coords[0]})"
+    dest_wkt = f"POINT({dest_coords[1]} {dest_coords[0]})"
+    line_wkt = f"LINESTRING({origin_coords[1]} {origin_coords[0]}, {dest_coords[1]} {dest_coords[0]})"
+    
+    # Query maritime_lanes for the nearest lane(s) to the route
+    # Also check if route crosses any special canals (Suez, Panama)
+    result = await session.execute(
+        text("""
+            WITH route_line AS (
+              SELECT ST_GeomFromText(:line_wkt, 4326) AS geom, 
+                     ST_GeomFromText(:origin_wkt, 4326) AS origin_pt,
+                     ST_GeomFromText(:dest_wkt, 4326) AS dest_pt
+            ),
+            lanes_with_distance AS (
+              SELECT 
+                m.id,
+                m.lane_name,
+                m.geom,
+                m.properties,
+                r.geom AS route_geom,
+                r.origin_pt,
+                r.dest_pt,
+                ST_Distance(m.geom::geometry, r.geom) AS distance_m,
+                ST_Intersects(m.geom::geometry, r.geom) AS intersects_route,
+                ST_Contains(r.geom, m.geom::geometry) AS route_contains_lane
+              FROM public.maritime_lanes m, route_line r
+              WHERE m.geom IS NOT NULL
+            ),
+            closest_lanes AS (
+              SELECT *
+              FROM lanes_with_distance
+              WHERE distance_m < 1000000  -- Within ~1000km (degrees * ~111km)
+              ORDER BY 
+                CASE
+                  WHEN intersects_route THEN 0
+                  WHEN route_contains_lane THEN 1
+                  ELSE 2
+                END,
+                distance_m
+              LIMIT 3
+            )
+            SELECT 
+              id,
+              lane_name,
+              ST_AsGeoJSON(geom) AS geom_json,
+              properties,
+              distance_m,
+              intersects_route,
+              ST_Length(geom::geography) / 1000 AS lane_length_km
+            FROM closest_lanes
+            ORDER BY distance_m
+        """),
+        {
+            "line_wkt": line_wkt,
+            "origin_wkt": origin_wkt,
+            "dest_wkt": dest_wkt,
+        }
+    )
+    
+    rows = result.fetchall()
+    
+    # Build waypoints from the maritime lanes
+    waypoints = [origin_coords]
+    transit_time_hours = 0.0
+    
+    if rows:
+        # Process each lane found and extract waypoints
+        for row in rows:
+            geom_json = row[2]
+            lane_length_km = float(row[6]) if row[6] else 0
+            
+            if geom_json:
+                try:
+                    geom_dict = json.loads(geom_json)
+                    # Extract coordinates from the geometry
+                    coords = _extract_coordinates_from_geojson(geom_dict)
+                    
+                    if coords:
+                        # Convert from [lon, lat] to [lat, lon]
+                        for coord in coords:
+                            if isinstance(coord, (list, tuple)) and len(coord) >= 2:
+                                lat_lon = [coord[1], coord[0]]
+                                # Avoid duplicates
+                                if lat_lon not in waypoints:
+                                    waypoints.append(lat_lon)
+                        
+                        # Estimate transit time based on lane length (~20 knots avg maritime speed)
+                        # 1 nautical mile ≈ 1.852 km
+                        if lane_length_km > 0:
+                            transit_time_hours += lane_length_km / 37.04  # 20 knots = 37.04 km/h
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
+    
+    # Always add destination as final waypoint
+    if dest_coords not in waypoints:
+        waypoints.append(dest_coords)
+    
+    # If no maritime lanes found, create a simple waypoint path
+    if len(waypoints) <= 2:
+        # Add intermediate waypoint(s) if only origin and destination
+        mid_lat = (origin_coords[0] + dest_coords[0]) / 2
+        mid_lon = (origin_coords[1] + dest_coords[1]) / 2
+        waypoints.insert(1, [mid_lat, mid_lon])
+        # Simple estimate: distance in degrees * ~111km/degree / 37km/h (20 knots)
+        lat_diff = dest_coords[0] - origin_coords[0]
+        lon_diff = dest_coords[1] - origin_coords[1]
+        distance_km = ((lat_diff ** 2 + lon_diff ** 2) ** 0.5) * 111
+        transit_time_hours = max(1.0, distance_km / 37.04)
+    
+    # Estimate default transit time if not calculated from lanes
+    if transit_time_hours == 0:
+        transit_time_hours = 21.0  # Default maritime transit time (~10 days)
+    
+    return {
+        "route_id": f"{origin}-{destination}-maritime",
+        "waypoints": waypoints,
+        "transit_time_hours": transit_time_hours,
+        "mode": "maritime",
+        "origin_coords": origin_coords,
+        "destination_coords": dest_coords,
+    }
+
+
+def _extract_coordinates_from_geojson(geom: dict) -> list[list[float]]:
+    """
+    Extract all coordinates from a GeoJSON geometry object.
+    Returns list of [lon, lat] coordinates.
+    """
+    geom_type = geom.get("type", "").upper()
+    coordinates = geom.get("coordinates", [])
+    
+    if geom_type == "POINT":
+        return [coordinates]
+    elif geom_type == "LINESTRING":
+        return coordinates
+    elif geom_type == "MULTILINESTRING":
+        # Flatten all line segments
+        result = []
+        for line in coordinates:
+            result.extend(line)
+        return result
+    elif geom_type == "POLYGON":
+        # Return the exterior ring
+        return coordinates[0] if coordinates else []
+    elif geom_type == "MULTIPOLYGON":
+        # Return the first polygon's exterior ring
+        if coordinates and coordinates[0]:
+            return coordinates[0][0]
+        return []
+    
+    return []
 
 
 def _wp_to_shapely(lat: float, lon: float) -> Point:

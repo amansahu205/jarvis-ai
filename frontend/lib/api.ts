@@ -83,6 +83,28 @@ export interface ComplianceResponse {
   overall_status: 'PASS' | 'FLAG' | 'BLOCK'
 }
 
+export interface RouteGeometryRequest {
+  origin: string
+  destination: string
+  transit_mode: string
+  waypoints: [number, number][]
+}
+
+export interface RouteGeometryResponse {
+  source: string
+  geometry: GeoJSON.Geometry
+}
+
+export interface TelemetryLatestResponse {
+  reading_id: string
+  shipment_id: string
+  temp_c: number
+  temp_excursion: boolean
+  alert_flag: boolean
+  status: string
+  recorded_at: string
+}
+
 export const analyzeRoute = (origin: string, destination: string, transitMode: string, cargoType: string) =>
   req<RouteResponse>('POST', '/api/v1/regumap/analyze-route', {
     origin, destination, transit_mode: transitMode, cargo_type: cargoType,
@@ -95,3 +117,9 @@ export const spatialCheck = (origin: string, destination: string, transitMode: s
 
 export const complianceCheck = (jurisdictions: Jurisdiction[]) =>
   req<ComplianceResponse>('POST', '/api/v1/regumap/compliance-check', { jurisdictions })
+
+export const fetchRouteGeometry = (payload: RouteGeometryRequest) =>
+  req<RouteGeometryResponse>('POST', '/api/v1/regumap/route-geometry', payload)
+
+export const getLatestTelemetry = () =>
+  req<TelemetryLatestResponse>('GET', '/api/v1/telemetry/latest')

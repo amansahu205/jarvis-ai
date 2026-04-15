@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { FuelPriceWidget } from "./fuel-price-widget"
 import POUploadModal from "./po-upload-modal"
+import { LocationSearch } from "@/components/LocationSearch"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -513,22 +514,12 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
                   >
                     Origin
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. JFK"
-                    value={routeAnalyzerData.origin}
-                    onChange={(e) =>
-                      setRouteAnalyzerData((prev) => ({
-                        ...prev,
-                        origin: e.target.value,
-                      }))
+                  <LocationSearch
+                    mode={routeAnalyzerData.transitMode === "maritime" ? "maritime" : "air"}
+                    onSelect={(loc) =>
+                      setRouteAnalyzerData((prev) => ({ ...prev, origin: loc.code }))
                     }
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(88,166,255,0.2)",
-                      color: "#E6EDF3",
-                    }}
+                    inputStyle={{ padding: "8px 12px", fontSize: "13px", borderRadius: "8px" }}
                   />
                 </div>
                 <div>
@@ -538,22 +529,12 @@ export function Dashboard({ userRole = "logistics_planner" }: DashboardProps) {
                   >
                     Destination
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. LHR"
-                    value={routeAnalyzerData.destination}
-                    onChange={(e) =>
-                      setRouteAnalyzerData((prev) => ({
-                        ...prev,
-                        destination: e.target.value,
-                      }))
+                  <LocationSearch
+                    mode={routeAnalyzerData.transitMode === "maritime" ? "maritime" : "air"}
+                    onSelect={(loc) =>
+                      setRouteAnalyzerData((prev) => ({ ...prev, destination: loc.code }))
                     }
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(88,166,255,0.2)",
-                      color: "#E6EDF3",
-                    }}
+                    inputStyle={{ padding: "8px 12px", fontSize: "13px", borderRadius: "8px" }}
                   />
                 </div>
               </div>
@@ -993,8 +974,8 @@ function ManualEntryForm() {
       title: "Routing",
       icon: <Route size={16} />,
       fields: [
-        { key: "origin", label: "Origin", type: "text", placeholder: "Airport/Port code" },
-        { key: "destination", label: "Destination", type: "text", placeholder: "Airport/Port code" },
+        { key: "origin", label: "Origin", type: "location", placeholder: "IATA code or port name" },
+        { key: "destination", label: "Destination", type: "location", placeholder: "IATA code or port name" },
         { key: "transitMode", label: "Transit Mode", type: "select", options: ["air", "maritime", "ground"] },
         { key: "estimatedDeparture", label: "Est. Departure", type: "datetime-local" },
         { key: "estimatedArrival", label: "Est. Arrival", type: "datetime-local" },
@@ -1112,6 +1093,13 @@ function ManualEntryForm() {
                       Yes
                     </span>
                   </label>
+                ) : field.type === "location" ? (
+                  <LocationSearch
+                    mode={formData.transitMode === "maritime" ? "maritime" : "air"}
+                    placeholder={field.placeholder}
+                    onSelect={(loc) => handleChange(field.key, loc.code)}
+                    inputStyle={{ padding: "8px 12px", fontSize: "13px", borderRadius: "8px" }}
+                  />
                 ) : (
                   <input
                     type={field.type}
