@@ -331,6 +331,7 @@ Submission support docs are available in `docs/submission/`:
 - `REPRODUCIBILITY_AND_USAGE_DRAFT.md`
 - `DEMO_VIDEO_SHOTLIST.md`
 - `SUPPORTING_FILES_INDEX.md`
+- `SUBMISSION_READINESS_AUDIT_2026-04-15.md`
 
 Recommended submission flow:
 
@@ -342,5 +343,7 @@ Recommended submission flow:
 ## License
 
 Academic project for UMD Agentic AI Challenge 2026.
+
+
 
 
