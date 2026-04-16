@@ -1,11 +1,33 @@
 # PharmaGuard AI
 
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=220&text=PharmaGuard%20AI&fontAlign=50&fontAlignY=38&color=0:0D1117,40:1E3A8A,70:0EA5E9,100:10B981&fontColor=E6EDF3&desc=Autonomous%20Cold-Chain%20Monitoring%20%7C%20ReguMap%20Spatial%20Compliance&descAlign=50&descAlignY=60&animation=twinkling" alt="PharmaGuard AI Banner" />
+</p>
+
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=500&size=18&pause=1200&color=58A6FF&center=true&vCenter=true&width=900&lines=Anomaly+to+approved+reroute+in+under+10+minutes;Spatial+compliance+with+PostGIS+and+jurisdiction-aware+checks;Multi-agent+workflow+with+human-in-the-loop+approval" alt="Typing animation" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Challenge-UMD%20Agentic%20AI%202026-1f6feb?style=for-the-badge&logo=openai&logoColor=white" />
+  <img src="https://img.shields.io/badge/Backend-FastAPI-059669?style=for-the-badge&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/Frontend-Next.js-0D1117?style=for-the-badge&logo=nextdotjs&logoColor=white" />
+  <img src="https://img.shields.io/badge/Database-Supabase%20Postgres-3ECF8E?style=for-the-badge&logo=supabase&logoColor=0D1117" />
+  <img src="https://img.shields.io/badge/Geospatial-PostGIS-2D6CDF?style=for-the-badge&logo=postgresql&logoColor=white" />
+</p>
+
 PharmaGuard AI is a cold-chain intelligence platform for pharmaceutical logistics. It combines real-time telemetry monitoring, route planning, geospatial compliance checks, and human-in-the-loop approval workflows.
 
 This README is structured for two goals:
 
 - Understand exactly what has been implemented in the prototype
 - Reproduce the system locally with minimal guesswork
+
+Planning context referenced:
+
+- `Planning/PRD_JarvisAI.md`
+- `Planning/PRD_v1.3.md`
+- `Planning/APP_FLOW_JarvisAI.md`
 
 ## Table of Contents
 
@@ -96,6 +118,11 @@ flowchart LR
 4. Frontend runs spatial-check to infer jurisdictions.
 5. Frontend runs compliance-check for enriched rule output.
 6. Map renders selected route plus alternate candidate arcs.
+### Strategist dual-flow model (PRD v1.3)
+
+- Proactive flow: dashboard Analyze triggers `/api/v1/strategist/plan`, ranks candidates, and persists planning sessions.
+- Reactive flow: Sentinel crisis event triggers reroute generation, risk/compliance ranking, and crisis ticket hydration.
+- Both flows share route generation and risk scoring primitives but diverge in persistence and approval lifecycle.
 
 ### Backend API router composition
 
@@ -164,6 +191,12 @@ Representative endpoints (not exhaustive):
 - `POST /api/v1/shipments/create`
 
 ## 7) Detailed Replication Guide
+
+Python dependency files in repo root:
+
+- `requirements.txt` for runtime dependencies
+- `requirements-dev.txt` for lint/test/type-check tooling
+
 
 ### 7.1 Prerequisites
 
@@ -309,3 +342,5 @@ Recommended submission flow:
 ## License
 
 Academic project for UMD Agentic AI Challenge 2026.
+
+

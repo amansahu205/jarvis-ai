@@ -1,0 +1,56 @@
+# PharmaGuard AI - Python runtime requirements
+#
+# Usage:
+#   python -m venv .venv
+#   .venv\Scripts\activate   (Windows PowerShell)
+#   pip install -r requirements.txt
+#
+# Source of truth aligned with backend/pyproject.toml (runtime dependencies).
+
+# Core web framework and API runtime
+fastapi>=0.135.3
+uvicorn[standard]>=0.44.0
+sse-starlette>=3.3.4
+websockets>=16.0
+
+# Data models, settings, and validation
+pydantic[email]>=2.12.5
+pydantic-settings>=2.13.1
+sqlmodel>=0.0.38
+structlog>=25.5.0
+
+# Database and migrations
+asyncpg>=0.31.0
+psycopg2-binary>=2.9.11
+alembic>=1.18.4
+
+# Security and auth
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.5.0
+python-multipart>=0.0.26
+
+# HTTP and file handling
+httpx>=0.28.1
+aiofiles>=25.1.0
+
+# Geospatial and route/compliance utilities
+shapely>=2.1.2
+geojson>=3.2.0
+
+# Agent orchestration and LLM ecosystem
+langgraph>=1.1.6
+langchain-anthropic>=1.4.0
+anthropic>=0.94.0
+
+# Compliance retrieval and vector search
+pinecone>=8.1.2
+
+# External communication channels
+elevenlabs>=2.42.0
+twilio>=9.10.4
+
+# Notes:
+# - Optional capabilities depend on environment variables in backend/.env:
+#   GEMINI_API_KEY, ANTHROPIC_API_KEY, PINECONE_API_KEY,
+#   OPENWEATHER_API_KEY, ELEVENLABS_API_KEY, TWILIO_*.
+# - If optional keys are missing, the app falls back/degrades in specific flows.

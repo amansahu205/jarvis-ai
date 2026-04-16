@@ -1,0 +1,17 @@
+# PharmaGuard AI - Python development and QA requirements
+#
+# Install after runtime deps:
+#   pip install -r requirements.txt
+#   pip install -r requirements-dev.txt
+
+# Reuse key test/runtime libs for local tooling parity
+httpx>=0.28.1
+
+# Static typing and linting
+mypy>=1.20.0
+ruff>=0.15.10
+
+# Testing
+pytest>=9.0.3
+pytest-asyncio>=1.3.0
+pytest-cov>=7.1.0
