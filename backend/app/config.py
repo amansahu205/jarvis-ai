@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str = ''
     TWILIO_AUTH_TOKEN: str = ''
     TWILIO_PHONE_NUMBER: str = ''
+    TWILIO_STUDIO_FLOW_SID: str = ''
     RP_PHONE_NUMBER: str = ''
     FRONTEND_URL: str = 'http://localhost:3000'
 
@@ -29,5 +30,6 @@ def get_settings() -> Settings:
     return Settings()
 
 settings = get_settings()
+
 
 

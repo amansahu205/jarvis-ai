@@ -9,7 +9,9 @@ from sqlalchemy import text
 from agents.compliance_cop import ComplianceCopAgent
 from agents.diplomat import DiplomatAgent
 from agents.strategist_agent import PharmaGuardStrategistAgent
+from app.config import settings
 from app.database import AsyncSessionLocal
+from app.services.twilio_service import maybe_trigger_critical_call
 
 
 @dataclass
@@ -26,175 +28,15 @@ class TelemetrySnapshot:
     recorded_at: Any
 
 
-DDL_SQL = [
-    """
-    CREATE TABLE IF NOT EXISTS public.shipments (
-        id BIGSERIAL PRIMARY KEY,
-        shipment_code TEXT NOT NULL UNIQUE,
-        origin_id TEXT NOT NULL,
-        dest_id TEXT NOT NULL,
-        cargo_type TEXT NOT NULL,
-        safe_humidity_min NUMERIC NOT NULL DEFAULT 35,
-        safe_humidity_max NUMERIC NOT NULL DEFAULT 60,
-        status TEXT NOT NULL DEFAULT 'PENDING',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-    """
-    ALTER TABLE public.shipments
-        ADD COLUMN IF NOT EXISTS safe_humidity_min NUMERIC NOT NULL DEFAULT 35;
-    """,
-    """
-    ALTER TABLE public.shipments
-        ADD COLUMN IF NOT EXISTS safe_humidity_max NUMERIC NOT NULL DEFAULT 60;
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.crisis_tickets (
-        id BIGSERIAL PRIMARY KEY,
-        reading_id TEXT NOT NULL UNIQUE,
-        shipment_id TEXT,
-        status VARCHAR NOT NULL DEFAULT 'GENERATING',
-        telemetry_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.reroute_options (
-        id BIGSERIAL PRIMARY KEY,
-        ticket_id BIGINT NOT NULL REFERENCES public.crisis_tickets(id) ON DELETE CASCADE,
-        option_rank INT NOT NULL,
-        route_id TEXT NOT NULL,
-        transit_mode TEXT NOT NULL,
-        estimated_hours DOUBLE PRECISION,
-        risk_score DOUBLE PRECISION,
-        path_nodes JSONB NOT NULL DEFAULT '[]'::jsonb,
-        waypoints JSONB NOT NULL DEFAULT '[]'::jsonb,
-        strategist_note TEXT,
-        compliance_status VARCHAR NOT NULL DEFAULT 'PENDING',
-        compliance_note TEXT,
-        compliance_summary TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.jurisdiction_checks (
-        id BIGSERIAL PRIMARY KEY,
-        ticket_id BIGINT NOT NULL REFERENCES public.crisis_tickets(id) ON DELETE CASCADE,
-        option_id BIGINT REFERENCES public.reroute_options(id) ON DELETE CASCADE,
-        route_id TEXT NOT NULL,
-        jurisdiction_code TEXT,
-        check_status TEXT,
-        details TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.regulation_citations (
-        id BIGSERIAL PRIMARY KEY,
-        ticket_id BIGINT NOT NULL REFERENCES public.crisis_tickets(id) ON DELETE CASCADE,
-        option_id BIGINT REFERENCES public.reroute_options(id) ON DELETE CASCADE,
-        route_id TEXT NOT NULL,
-        clause TEXT NOT NULL,
-        source TEXT,
-        severity TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.diplomat_drafts (
-        id BIGSERIAL PRIMARY KEY,
-        ticket_id BIGINT NOT NULL REFERENCES public.crisis_tickets(id) ON DELETE CASCADE,
-        shipment_id TEXT,
-        summary_message TEXT NOT NULL,
-        voice_script JSONB NOT NULL DEFAULT '{}'::jsonb,
-        dispatch_status VARCHAR NOT NULL DEFAULT 'DRAFT',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.audit_logs (
-        id BIGSERIAL PRIMARY KEY,
-        ticket_id BIGINT REFERENCES public.crisis_tickets(id) ON DELETE SET NULL,
-        agent_name TEXT NOT NULL,
-        action TEXT NOT NULL,
-        details JSONB NOT NULL DEFAULT '{}'::jsonb,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.rp_approvals (
-        id BIGSERIAL PRIMARY KEY,
-        ticket_id BIGINT NOT NULL REFERENCES public.crisis_tickets(id) ON DELETE CASCADE,
-        reading_id TEXT,
-        shipment_id TEXT,
-        approved_by TEXT NOT NULL,
-        approver_user_id BIGINT,
-        note TEXT,
-        approved_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.planned_routes (
-        id BIGSERIAL PRIMARY KEY,
-        plan_token TEXT NOT NULL UNIQUE,
-        user_id BIGINT,
-        origin_id TEXT NOT NULL,
-        dest_id TEXT NOT NULL,
-        cargo_type TEXT NOT NULL,
-        recommended_route_id TEXT,
-        risk_score DOUBLE PRECISION,
-        compliance_summary TEXT,
-        evaluated_routes JSONB NOT NULL DEFAULT '[]'::jsonb,
-        thought_log JSONB NOT NULL DEFAULT '[]'::jsonb,
-        status VARCHAR NOT NULL DEFAULT 'PLANNED',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.processed_alerts (
-        reading_id TEXT PRIMARY KEY,
-        processed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        agent_decision TEXT,
-        resolution_status VARCHAR NOT NULL DEFAULT 'PENDING'
-    );
-    """,
-    """
-    DO $$
-    BEGIN
-        IF NOT EXISTS (
-            SELECT 1
-            FROM pg_constraint c
-            JOIN pg_class t ON t.oid = c.conrelid
-            JOIN pg_namespace n ON n.oid = t.relnamespace
-            WHERE n.nspname = 'public'
-              AND t.relname = 'processed_alerts'
-              AND c.conname = 'processed_alerts_reading_id_fkey'
-        ) THEN
-            ALTER TABLE public.processed_alerts
-            ADD CONSTRAINT processed_alerts_reading_id_fkey
-            FOREIGN KEY (reading_id)
-            REFERENCES public.telemetry_readings(reading_id)
-            ON DELETE CASCADE;
-        END IF;
-    END
-    $$;
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS public.crisis_events (
-        id BIGSERIAL PRIMARY KEY,
-        reading_id TEXT NOT NULL UNIQUE,
-        shipment_id TEXT NOT NULL,
-        recommendation_route_id TEXT,
-        risk_score DOUBLE PRECISION,
-        thought_log JSONB NOT NULL DEFAULT '[]'::jsonb,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    """,
-]
+# DDL_SQL is intentionally empty — real schema is managed by Supabase migrations.
+# ensure_tables() is kept as a safe no-op to avoid startup errors.
+DDL_SQL: list[str] = []
 
+def _severity_from_telemetry(alert_type: str | None, status: str | None) -> str:
+    marker = (alert_type or status or "").upper()
+    if marker in {"CRITICAL", "TEMP_EXCURSION", "ALERT", "CRITICAL_L1"}:
+        return "CRITICAL_L1"
+    return "WARNING_L2"
 
 class CrisisOrchestrator:
     """Orchestrates Sentinel -> Strategist -> Compliance Cop -> Diplomat flow."""
@@ -216,7 +58,19 @@ class CrisisOrchestrator:
         if telemetry is None:
             return
 
+        severity = _severity_from_telemetry(telemetry.alert_type, telemetry.status)
         ticket_id = await self._upsert_crisis_ticket(telemetry)
+
+        if severity == "CRITICAL_L1":
+            call_sid = await maybe_trigger_critical_call(settings.RP_PHONE_NUMBER)
+            if call_sid:
+                await self._emit_agent_event(
+                    ticket_id,
+                    reading_id,
+                    "Diplomat",
+                    "triggered twilio escalation call",
+                    {"twilio_execution_sid": call_sid, "to": settings.RP_PHONE_NUMBER},
+                )
         await self._emit_agent_event(
             ticket_id,
             reading_id,
@@ -320,7 +174,8 @@ class CrisisOrchestrator:
             recorded_at=row[9],
         )
 
-    async def _upsert_crisis_ticket(self, telemetry: TelemetrySnapshot) -> int:
+    async def _upsert_crisis_ticket(self, telemetry: TelemetrySnapshot) -> str:
+        """Insert/upsert a crisis_ticket. Returns the ticket UUID."""
         snapshot = {
             "reading_id": telemetry.reading_id,
             "shipment_id": telemetry.shipment_id,
@@ -333,82 +188,121 @@ class CrisisOrchestrator:
             "location_description": telemetry.location_description,
             "recorded_at": str(telemetry.recorded_at),
         }
+        # Resolve shipment UUID from shipment_code (telemetry.shipment_id stores the code string)
+        async with AsyncSessionLocal() as session:
+            ship_result = await session.execute(
+                text(
+                    "SELECT id FROM public.shipments WHERE shipment_code = :code LIMIT 1"
+                ),
+                {"code": telemetry.shipment_id},
+            )
+            ship_row = ship_result.first()
+            shipment_uuid: str | None = str(ship_row[0]) if ship_row else None
+
+        severity = _severity_from_telemetry(telemetry.alert_type, telemetry.status)
 
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 text(
                     """
                     INSERT INTO public.crisis_tickets (
-                        reading_id,
                         shipment_id,
+                        severity,
                         status,
+                        anomaly_summary,
                         telemetry_snapshot,
-                        created_at,
-                        updated_at
+                        created_at
                     ) VALUES (
-                        :reading_id,
-                        :shipment_id,
-                        'GENERATING',
-                        cast(:snapshot as jsonb),
-                        now(),
+                        :shipment_id::uuid,
+                        :severity::crisis_severity,
+                        'GENERATING'::crisis_status,
+                        cast(:anomaly_summary as jsonb),
+                        cast(:telemetry_snapshot as jsonb),
                         now()
                     )
-                    ON CONFLICT (reading_id) DO UPDATE
-                    SET shipment_id = excluded.shipment_id,
-                        status = 'GENERATING',
-                        telemetry_snapshot = excluded.telemetry_snapshot,
-                        updated_at = now()
+                    ON CONFLICT DO NOTHING
                     RETURNING id
                     """
                 ),
                 {
-                    "reading_id": telemetry.reading_id,
-                    "shipment_id": telemetry.shipment_id,
-                    "snapshot": json.dumps(snapshot),
+                    "shipment_id": shipment_uuid,
+                    "severity": severity,
+                    "anomaly_summary": json.dumps({"reading_id": telemetry.reading_id, "alert_type": telemetry.alert_type}),
+                    "telemetry_snapshot": json.dumps([snapshot]),
                 },
             )
             row = result.first()
             await session.commit()
 
-        return int(row[0])
+        if row:
+            return str(row[0])
+        # If ON CONFLICT DO NOTHING hit, fetch the existing ticket
+        async with AsyncSessionLocal() as session:
+            existing = await session.execute(
+                text(
+                    "SELECT id FROM public.crisis_tickets WHERE shipment_id = :sid::uuid "
+                    "AND status = 'GENERATING' ORDER BY created_at DESC LIMIT 1"
+                ),
+                {"sid": shipment_uuid},
+            )
+            existing_row = existing.first()
+        return str(existing_row[0]) if existing_row else ''
 
     async def _emit_agent_event(
         self,
-        ticket_id: int,
+        ticket_id: str,  # UUID string
         reading_id: str,
         agent_name: str,
         action: str,
         details: dict[str, Any] | None = None,
     ) -> None:
         payload = details or {}
+        # Map free-form action strings to valid audit_event_type enum values
+        _ACTION_TO_EVENT = {
+            'created crisis ticket': 'ANOMALY_DETECTED',
+            'generated reroute options': 'ROUTE_COMPLIANCE_CHECK',
+            'ticket moved to PENDING_APPROVAL': 'RP_ALERTED',
+            'approved': 'RP_APPROVED',
+            'rejected': 'RP_REJECTED',
+            'dispatch': 'DISPATCH_COMPLETE',
+            'triggered twilio escalation call': 'RP_ALERTED',
+        }
+        event_type = next(
+            (v for k, v in _ACTION_TO_EVENT.items() if k.lower() in action.lower()),
+            'ROUTE_COMPLIANCE_CHECK',  # safe default
+        )
 
-        async with AsyncSessionLocal() as session:
-            await session.execute(
-                text(
-                    """
-                    INSERT INTO public.audit_logs (
-                        ticket_id,
-                        agent_name,
-                        action,
-                        details,
-                        created_at
-                    ) VALUES (
-                        :ticket_id,
-                        :agent_name,
-                        :action,
-                        cast(:details as jsonb),
-                        now()
-                    )
-                    """
-                ),
-                {
-                    "ticket_id": ticket_id,
-                    "agent_name": agent_name,
-                    "action": action,
-                    "details": json.dumps(payload),
-                },
-            )
-            await session.commit()
+        try:
+            async with AsyncSessionLocal() as session:
+                await session.execute(
+                    text(
+                        """
+                        INSERT INTO public.audit_logs (
+                            crisis_ticket_id,
+                            actor_agent,
+                            event_type,
+                            payload_summary,
+                            occurred_at
+                        ) VALUES (
+                            :crisis_ticket_id::uuid,
+                            :actor_agent,
+                            :event_type::audit_event_type,
+                            cast(:payload_summary as jsonb),
+                            now()
+                        )
+                        """
+                    ),
+                    {
+                        "crisis_ticket_id": ticket_id,
+                        "actor_agent": agent_name,
+                        "event_type": event_type,
+                        "payload_summary": json.dumps({"action": action, **payload}),
+                    },
+                )
+                await session.commit()
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning('audit_log emit failed (non-fatal): %s', exc)
 
         msg = f"{agent_name}: {action}"
         if payload:
@@ -487,7 +381,7 @@ class CrisisOrchestrator:
 
     async def _finalize_ticket(
         self,
-        ticket_id: int,
+        ticket_id: str,  # UUID string
         reading_id: str,
         shipment_id: str,
         recommended_route_id: str,
@@ -498,9 +392,8 @@ class CrisisOrchestrator:
                 text(
                     """
                     UPDATE public.crisis_tickets
-                    SET status = 'PENDING_APPROVAL',
-                        updated_at = now()
-                    WHERE id = :ticket_id
+                    SET status = 'PENDING_APPROVAL'::crisis_status
+                    WHERE id = :ticket_id::uuid
                     """
                 ),
                 {"ticket_id": ticket_id},
@@ -564,15 +457,14 @@ class CrisisOrchestrator:
                 },
             )
 
-            # Best-effort status sync across schemas where shipment id may be text or uuid.
+            # Best-effort status sync — use CRISIS_OPEN (valid shipment_status enum value)
             try:
                 await session.execute(
                     text(
                         """
                         UPDATE public.shipments
-                        SET status = 'REROUTING_PROPOSED'
+                        SET status = 'CRISIS_OPEN'::shipment_status
                         WHERE shipment_code = :shipment_id
-                           OR CAST(shipment_id AS text) = :shipment_id
                         """
                     ),
                     {"shipment_id": shipment_id},
@@ -592,6 +484,9 @@ class CrisisOrchestrator:
                 "frontend_signal": "CRISIS_PENDING_APPROVAL",
             },
         )
+
+
+
 
 
 
